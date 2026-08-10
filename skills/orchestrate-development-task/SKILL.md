@@ -33,7 +33,7 @@ Do not require a skill name, template, or orchestration prompt.
 - Use read-only discovery before external mutations.
 - Never invent IDs, group meanings, column IDs, checks, or URLs.
 - Keep card state aligned with actual work state.
-- Assign the configured Friday user when execution begins.
+- Assign the token-authenticated Friday user when execution begins.
 - Request direction only when a decision changes product scope.
 - Stop before destructive administration or ambiguous publication.
 

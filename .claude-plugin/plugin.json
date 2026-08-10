@@ -2,7 +2,7 @@
   "$schema": "https://json.schemastore.org/claude-code-plugin-manifest.json",
   "name": "agentic-dev-flow",
   "displayName": "Agentic Dev Flow",
-  "version": "0.2.1",
+  "version": "0.2.2",
   "description": "Portable development orchestration with Friday and automatic remote model routing.",
   "author": {"name": "Local developer"},
   "skills": "./skills/",

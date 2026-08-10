@@ -5,7 +5,7 @@
 ```markdown
 Started on `<branch>`.
 Scope: <one sentence>.
-Assigned to: <configured Friday email>.
+Assigned to: <token-authenticated Friday email>.
 Model route: <implementation agent and tier>.
 ```
 

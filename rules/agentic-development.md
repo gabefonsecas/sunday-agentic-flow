@@ -12,6 +12,6 @@
 - Route work automatically across host-provided remote model tiers.
 - Invoke separate specialists for all four routing phases.
 - Record requested and observed routing evidence.
-- Assign the configured Friday user before implementation.
+- Assign the token-authenticated Friday user before implementation.
 - Let the primary agent own final synthesis and external actions.
 - Use independent subagents for analysis and verification when available.

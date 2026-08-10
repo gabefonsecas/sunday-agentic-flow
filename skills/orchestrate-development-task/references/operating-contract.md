@@ -14,7 +14,7 @@ Keep these facts during execution:
 - Request and resolved scope.
 - Repository root and applicable instruction files.
 - Friday workspace, board, group, item, and column IDs.
-- Configured assignee email, resolved member ID, and assignment result.
+- Token-resolved assignee email, member ID, and assignment result.
 - Branch name, base branch, and commit SHA.
 - Commands run and their outcomes.
 - PR URL and final Friday changes.
@@ -22,7 +22,7 @@ Keep these facts during execution:
 
 ## Assignment gate
 
-When a story enters execution, call `assign_configured_user` with its
+When a story enters execution, call `assign_authenticated_user` with its
 workspace, board, and item IDs. Do not begin implementation before the tool
 returns `assigned: true`. Never guess a user or people-column ID.
 

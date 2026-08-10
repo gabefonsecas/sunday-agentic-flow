@@ -8,7 +8,7 @@ description: Implement a Friday-managed development story inside a repository wh
 1. Fetch or confirm the Friday item and acceptance criteria.
 2. Resolve the board's groups and current item location.
 3. Move the item to the existing in-progress group.
-4. Call Friday `assign_configured_user` immediately.
+4. Call Friday `assign_authenticated_user` immediately.
 5. Require `assigned: true` before implementing code.
 6. Recheck scoped project instructions for intended files.
 7. Dispatch the implementation worker in a fresh context.
