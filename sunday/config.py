@@ -1,6 +1,6 @@
 """Sunday configuration from TOML and environment variables."""
 
-from dataclasses import dataclass, field
+from dataclasses import dataclass, field, replace
 import os
 from pathlib import Path
 import tomllib
@@ -27,6 +27,7 @@ class ProjectConfig:
 @dataclass(slots=True)
 class Settings:
     default_host: str = "auto"
+    default_project: str | None = None
     cross_provider: bool = False
     strict_model_verification: bool = True
     watcher_interval: int = 60
@@ -39,7 +40,7 @@ class Settings:
             if name not in self.projects:
                 raise KeyError(f"Unknown project: {name}")
             return self.projects[name]
-        resolved = (cwd or Path.cwd()).resolve()
+        resolved = _repository_root((cwd or Path.cwd()).resolve())
         matches = [
             project
             for project in self.projects.values()
@@ -47,9 +48,25 @@ class Settings:
         ]
         if len(matches) == 1:
             return matches[0]
+        if self.default_project:
+            if self.default_project not in self.projects:
+                raise KeyError(f"Unknown default project: {self.default_project}")
+            template = self.projects[self.default_project]
+            return replace(template, name=resolved.name, repository=resolved)
         if len(self.projects) == 1:
-            return next(iter(self.projects.values()))
+            template = next(iter(self.projects.values()))
+            return replace(template, name=resolved.name, repository=resolved)
+        if not self.projects:
+            return ProjectConfig(name=resolved.name, repository=resolved)
         raise RuntimeError("Select a configured project with --project")
+
+
+def _repository_root(path: Path) -> Path:
+    current = path if path.is_dir() else path.parent
+    for candidate in (current, *current.parents):
+        if (candidate / ".git").exists():
+            return candidate
+    return current
 
 
 def config_path() -> Path:
@@ -85,6 +102,7 @@ def load_settings(path: Path | None = None) -> Settings:
     }
     return Settings(
         default_host=runtime.get("default_host", "auto"),
+        default_project=runtime.get("default_project"),
         cross_provider=bool(runtime.get("cross_provider", False)),
         strict_model_verification=bool(runtime.get("strict_model_verification", True)),
         watcher_interval=int(runtime.get("watcher_interval", 60)),
@@ -97,6 +115,7 @@ def load_settings(path: Path | None = None) -> Settings:
 DEFAULT_CONFIG = '''# Sunday configuration. Secrets belong in .env.
 [runtime]
 default_host = "auto"
+default_project = "example"
 cross_provider = false
 strict_model_verification = true
 watcher_interval = 60

@@ -48,3 +48,12 @@ class RunStoreTests(unittest.TestCase):
         run = self.store.transition(run.id, "failed")
         with self.assertRaisesRegex(RuntimeError, "Terminal run"):
             self.store.transition(run.id, "paused")
+
+    def test_operation_is_idempotent(self):
+        operation, created = self.store.create_operation("create", "same-key", {"request": "work"})
+        self.assertTrue(created)
+        self.store.update_operation(operation.id, "completed", {"tasks": [{"id": 10}]})
+        repeated, created = self.store.create_operation("create", "same-key", {})
+        self.assertFalse(created)
+        self.assertEqual(repeated.status, "completed")
+        self.assertEqual(repeated.payload["tasks"][0]["id"], 10)

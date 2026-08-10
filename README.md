@@ -1,8 +1,25 @@
 # Sunday
 
-Sunday executa tarefas de desenvolvimento até uma pull request auditável.
+Sunday transforma pedidos em linguagem natural em tarefas Friday e executa o desenvolvimento até uma pull request auditável.
 
-Ele recebe um item Friday e controla todo o fluxo:
+Depois da instalação e configuração inicial, o fluxo acontece dentro da CLI de IA.
+Você não precisa decorar nem digitar comandos Sunday.
+
+Exemplos de pedidos:
+
+```text
+Sunday, crie uma tarefa no Friday para corrigir o login.
+Sunday, crie três histórias para esta feature.
+Sunday, crie a tarefa e já comece a executar.
+Sunday, execute a tarefa Friday 1234.
+Sunday, acompanhe a execução 8b17...
+Sunday, revise esta branch.
+```
+
+Se a CLI de IA estiver aberta dentro de `~/src/smb-products`, Sunday assume que a tarefa pertence ao projeto `smb-products`.
+Ele usa a raiz Git atual, lê `AGENTS.md` e instruções equivalentes, e só exige o nome do projeto quando existir ambiguidade real.
+
+Ele recebe um pedido ou item Friday e controla todo o fluxo:
 
 1. Assume a tarefa usando o usuário do token.
 2. Lê as regras e a arquitetura do projeto.
@@ -15,10 +32,11 @@ Ele recebe um item Friday e controla todo o fluxo:
 9. Cria commit, push e pull request.
 10. Vincula a pull request ao item Friday.
 
-O usuário não escreve prompts para iniciar o orquestrador.
-O comando universal é:
+Os comandos abaixo são a API interna usada pelas skills e também ficam disponíveis para automação:
 
 ```bash
+sunday create "corrigir o login"
+sunday create "corrigir o login" --execute
 sunday run ID_DA_TAREFA --project NOME_DO_PROJETO
 ```
 
@@ -343,6 +361,7 @@ Exemplo completo:
 ```toml
 [runtime]
 default_host = "auto"
+default_project = "portal"
 cross_provider = false
 strict_model_verification = true
 watcher_interval = 60
@@ -372,9 +391,14 @@ completed = 109
 failed = 110
 ```
 
+Essa configuração é feita uma vez por mapeamento Friday. No uso normal, abra Codex, Claude, Gemini ou Antigravity dentro do repositório e converse com Sunday.
+`default_project` define qual mapeamento de board e estados será reutilizado em novas pastas Git.
+O nome e o caminho do projeto sempre vêm da pasta atual. Se houver apenas um projeto configurado, ele já funciona como padrão mesmo sem esse campo.
+
 Significado dos campos:
 
 - `repository`: clone local onde Sunday trabalhará;
+- `default_project`: mapeamento Friday padrão para repositórios ainda não cadastrados;
 - `workspace_id`: workspace Friday;
 - `board_id`: board da tarefa;
 - `intake_group_id`: grupo que receberá histórias derivadas;
@@ -433,6 +457,61 @@ O instalador cria:
 Reinicie o Antigravity depois da instalação.
 
 # Uso
+
+## Uso normal pela CLI de IA
+
+Abra o host na pasta do projeto:
+
+```bash
+cd ~/src/smb-products
+codex
+```
+
+Também pode ser `claude`, `gemini` ou Antigravity. Depois, faça pedidos naturais:
+
+```text
+Sunday, crie uma tarefa no Friday para adicionar paginação ao catálogo.
+```
+
+Sunday irá:
+
+1. identificar `smb-products` pela raiz Git atual;
+2. ler as regras e o contexto relevante do repositório;
+3. usar o modelo de descoberta adequado para completar requisitos vagos;
+4. criar a tarefa no grupo de entrada configurado;
+5. atribuí-la ao usuário identificado pelo token Friday;
+6. devolver o ID e o título do card.
+
+Para criar e executar em seguida:
+
+```text
+Sunday, crie uma tarefa para adicionar paginação ao catálogo e já comece a executar.
+```
+
+Para decompor sem iniciar a implementação:
+
+```text
+Sunday, crie três histórias no Friday para migrar o catálogo para a nova API.
+```
+
+Os hosts invocam as skills e a CLI interna. Não copie comandos `sunday` durante o uso cotidiano.
+
+## API de linha de comando para automação
+
+Esta seção é opcional. Ela documenta o motor chamado pelas skills.
+
+### Criar tarefas
+
+```bash
+sunday create "adicionar paginação ao catálogo"
+sunday create "migrar o catálogo" --count 3
+sunday create "corrigir o login" --execute
+```
+
+Por padrão, a tarefa é atribuída ao usuário derivado do token Friday.
+Use `--no-assign` apenas para criar um card sem responsável.
+Repetir o mesmo pedido retorna o resultado anterior sem duplicar cards.
+`--allow-duplicate` exige uma intenção explícita de criar outra cópia.
 
 ## Executar uma tarefa
 

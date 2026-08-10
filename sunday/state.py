@@ -58,6 +58,17 @@ class Run:
     metadata: dict
 
 
+@dataclass(slots=True)
+class Operation:
+    id: str
+    kind: str
+    idempotency_key: str
+    status: str
+    created_at: str
+    updated_at: str
+    payload: dict
+
+
 class RunStore:
     def __init__(self, path: Path | None = None):
         self.path = path or database_path()
@@ -116,9 +127,53 @@ class RunStore:
                     run_id TEXT NOT NULL REFERENCES runs(id) ON DELETE CASCADE,
                     acquired_at TEXT NOT NULL
                 );
+                CREATE TABLE IF NOT EXISTS operations (
+                    id TEXT PRIMARY KEY,
+                    kind TEXT NOT NULL,
+                    idempotency_key TEXT NOT NULL UNIQUE,
+                    status TEXT NOT NULL,
+                    created_at TEXT NOT NULL,
+                    updated_at TEXT NOT NULL,
+                    payload_json TEXT NOT NULL
+                );
                 CREATE INDEX IF NOT EXISTS events_run_id ON events(run_id, id);
                 """
             )
+
+    def create_operation(self, kind: str, idempotency_key: str, payload: dict) -> tuple[Operation, bool]:
+        timestamp = now()
+        operation_id = str(uuid4())
+        clean = redact(payload)
+        with self.connect() as connection:
+            try:
+                connection.execute(
+                    "INSERT INTO operations VALUES (?, ?, ?, 'started', ?, ?, ?)",
+                    (operation_id, kind, idempotency_key, timestamp, timestamp, json.dumps(clean)),
+                )
+                created = True
+            except sqlite3.IntegrityError:
+                row = connection.execute(
+                    "SELECT * FROM operations WHERE idempotency_key = ?", (idempotency_key,)
+                ).fetchone()
+                if not row:
+                    raise
+                return self._operation(row), False
+        return self.get_operation(operation_id), created
+
+    def get_operation(self, operation_id: str) -> Operation:
+        with self.connect() as connection:
+            row = connection.execute("SELECT * FROM operations WHERE id = ?", (operation_id,)).fetchone()
+        if not row:
+            raise KeyError(f"Unknown operation: {operation_id}")
+        return self._operation(row)
+
+    def update_operation(self, operation_id: str, status: str, payload: dict) -> Operation:
+        with self.connect() as connection:
+            connection.execute(
+                "UPDATE operations SET status = ?, updated_at = ?, payload_json = ? WHERE id = ?",
+                (status, now(), json.dumps(redact(payload), ensure_ascii=False), operation_id),
+            )
+        return self.get_operation(operation_id)
 
     def create(self, task_ref: str, project: str, host: str, metadata: dict | None = None) -> Run:
         run_id = str(uuid4())
@@ -272,4 +327,12 @@ class RunStore:
             host=row["host"], state=row["state"], resume_state=row["resume_state"],
             created_at=row["created_at"], updated_at=row["updated_at"],
             metadata=json.loads(row["metadata_json"]),
+        )
+
+    @staticmethod
+    def _operation(row: sqlite3.Row) -> Operation:
+        return Operation(
+            id=row["id"], kind=row["kind"], idempotency_key=row["idempotency_key"],
+            status=row["status"], created_at=row["created_at"], updated_at=row["updated_at"],
+            payload=json.loads(row["payload_json"]),
         )

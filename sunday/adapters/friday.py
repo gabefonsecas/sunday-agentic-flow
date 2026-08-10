@@ -208,6 +208,16 @@ class FridayAdapter(TaskManagerAdapter):
             {"group_id": group_id, "name": story["title"], "description": story["description"]},
         )
 
+    def find_story(self, marker: str, group_id: int) -> dict | None:
+        items = self.client.tool("list_items", {"group_id": group_id})
+        matches = [
+            item for item in items
+            if marker in str(item.get("description") or item.get("descricao") or item.get("content") or "")
+        ]
+        if len(matches) > 1:
+            raise RuntimeError(f"Friday contains duplicate items for {marker}")
+        return matches[0] if matches else None
+
     def transition(self, item_id: int, group_id: int) -> dict:
         return self.client.tool("move_item", {"item_id": item_id, "target_group_id": group_id})
 

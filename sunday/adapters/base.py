@@ -54,6 +54,9 @@ class TaskManagerAdapter(ABC):
     def create_story(self, story: dict, board_id: int, group_id: int) -> dict: ...
 
     @abstractmethod
+    def find_story(self, marker: str, group_id: int) -> dict | None: ...
+
+    @abstractmethod
     def transition(self, item_id: int, group_id: int) -> dict: ...
 
     @abstractmethod

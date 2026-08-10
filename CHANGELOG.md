@@ -1,5 +1,12 @@
 # Changelog
 
+## Unreleased
+
+- Added conversational Friday task creation through Sunday skills.
+- Added current Git repository inference and a reusable default Friday mapping.
+- Added model-assisted task detailing, token-based assignment, and create-then-execute flow.
+- Added durable, marker-based idempotency and partial-failure reconciliation for card creation.
+
 ## 1.0.0
 
 - Renamed the product and all public calls to Sunday.

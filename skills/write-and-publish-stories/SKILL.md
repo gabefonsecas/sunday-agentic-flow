@@ -1,27 +1,26 @@
 ---
 name: write-and-publish-stories
-description: Turn vague software work into small executable stories and publish them into Friday. Use when a feature, bug, refactor, or maintenance request lacks acceptance criteria, decomposition, dependencies, validation evidence, or task cards.
+description: Create agentically detailed Friday tasks from natural-language requests. Use whenever the user says "Sunday, crie uma tarefa", asks to create a card or stories in Friday, or wants a vague feature, bug, refactor, or maintenance request registered for the current repository.
 ---
 
 # Write and publish stories
 
 Read `references/story-template.md` before publishing.
+Treat the user's current working directory as the target project unless they explicitly name another one.
+Do not ask the user to run or copy a Sunday command.
 
-1. Use the project context and original request as inputs.
-2. Separate observable outcomes from implementation choices.
-3. State assumptions only when they are reversible.
-4. Split work into independently verifiable stories.
-5. Include acceptance criteria, exclusions, dependencies, risks, and checks.
-6. Call Friday `list_workspaces`, `list_boards`, and `list_groups`.
-7. Reuse the requested board and intake group.
-8. Call `create_item` once per approved story.
-9. Record returned item IDs and preserve dependency order.
-10. Resolve the token-authenticated assignee before execution begins.
-11. Add cross-links through `add_comment` when useful.
+1. Preserve the complete natural-language request.
+2. Infer the project from the nearest Git root in the current directory.
+3. Invoke `sunday create "<request>"` internally.
+4. Add `--count N` when the user requests an exact number of tasks.
+5. Add `--execute` when the user asks to create and start the work.
+6. Add `--no-assign` only when the user explicitly asks to leave it unassigned.
+7. Report the created Friday item IDs, titles, inferred project, assignment, and run ID when present.
 
-Story publication does not imply active execution.
-Call `assign_authenticated_user` only when a story enters execution.
+Sunday reads repository instructions, asks its task analyst to enrich vague requirements,
+publishes idempotently, and assigns the cards to the user resolved from the Friday token.
+Do not reproduce those steps manually when the Sunday runtime is available.
 
 Do not create workspaces, boards, groups, or columns implicitly.
-Do not publish duplicate cards. Search existing group items first.
-If the target board remains ambiguous, stop before `create_item`.
+Do not pass `--allow-duplicate` without an explicit request for another copy.
+Only ask a question when multiple configured Friday mappings fit the same repository.
