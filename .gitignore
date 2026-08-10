@@ -1,3 +1,10 @@
 .env
 __pycache__/
 *.pyc
+*.egg-info/
+build/
+dist/
+.coverage
+htmlcov/
+sunday-report-*.json
+sunday-report-*.md

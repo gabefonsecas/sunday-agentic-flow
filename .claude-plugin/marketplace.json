@@ -1,14 +1,14 @@
 {
-  "name": "agentic-dev-flow-local",
+  "name": "sunday-local",
   "owner": {
-    "name": "Local developer"
+    "name": "Gabriel Fonseca"
   },
-  "description": "Portable automatic agentic development workflow.",
+  "description": "Sunday deterministic development workflow.",
   "plugins": [
     {
-      "name": "agentic-dev-flow",
+      "name": "sunday-agentic-flow",
       "source": "./",
-      "description": "Orchestrate development through Friday, remote model routing, and pull requests.",
+      "description": "Run Sunday through Friday, routed models, and pull requests.",
       "category": "Development",
       "strict": true
     }
