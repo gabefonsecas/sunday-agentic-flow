@@ -24,7 +24,6 @@ REMOTE_URL = os.environ.get("FRIDAY_MCP_URL", "")
 if not REMOTE_URL and FRIDAY_TOKEN:
     REMOTE_URL = FRIDAY_BASE_URL + "?" + urllib.parse.urlencode({"api_token": FRIDAY_TOKEN})
 TIMEOUT = float(os.environ.get("FRIDAY_MCP_TIMEOUT", "60"))
-ASSIGNEE_EMAIL = os.environ.get("FRIDAY_ASSIGNEE_EMAIL", "").strip()
 ASSIGNEE_COLUMN = os.environ.get("FRIDAY_ASSIGNEE_COLUMN", "").strip()
 endpoint = None
 endpoint_ready = threading.Event()
@@ -32,9 +31,9 @@ startup_error = None
 internal_ids = count(1)
 
 ASSIGN_TOOL = {
-    "name": "assign_configured_user",
+    "name": "assign_authenticated_user",
     "description": (
-        "Assign the Friday user configured by FRIDAY_ASSIGNEE_EMAIL to an item. "
+        "Resolve the Friday user authenticated by FRIDAY_MCP_API_TOKEN and assign that user to an item. "
         "Call this immediately when implementation starts."
     ),
     "inputSchema": {
@@ -139,20 +138,45 @@ def select_people_column(columns):
     return people[0]
 
 
-def assign_configured_user(arguments, post_fn=post):
-    if not ASSIGNEE_EMAIL:
-        raise RuntimeError("Configure FRIDAY_ASSIGNEE_EMAIL in the private .env file")
+def resolve_authenticated_user(tasks):
+    if not tasks:
+        raise RuntimeError(
+            "Friday returned no token-scoped tasks. The server must expose get_current_user "
+            "before a taskless account can be resolved safely."
+        )
+    assignee_sets = []
+    profiles = {}
+    for task in tasks:
+        assignees = task.get("responsaveis") or []
+        ids = {assignee.get("id") for assignee in assignees if assignee.get("id") is not None}
+        if not ids:
+            continue
+        assignee_sets.append(ids)
+        for assignee in assignees:
+            if assignee.get("id") is not None:
+                profiles[assignee["id"]] = assignee
+    if not assignee_sets:
+        raise RuntimeError("Token-scoped tasks did not contain assignee identities")
+    candidates = set.intersection(*assignee_sets)
+    if len(candidates) != 1:
+        raise RuntimeError("Token-scoped tasks did not resolve exactly one authenticated user")
+    return profiles[candidates.pop()]
+
+
+def assign_authenticated_user(arguments, post_fn=post):
     workspace_id = arguments["workspace_id"]
     board_id = arguments["board_id"]
     item_id = arguments["item_id"]
+    tasks = call_remote_tool("list_my_tasks", {}, post_fn)
+    authenticated = resolve_authenticated_user(tasks)
     members = call_remote_tool("list_workspace_members", {"workspace_id": workspace_id}, post_fn)
     matches = [
         member
         for member in members
-        if str(member.get("email", "")).casefold() == ASSIGNEE_EMAIL.casefold()
+        if member.get("id") == authenticated.get("id")
     ]
     if len(matches) != 1:
-        raise RuntimeError("FRIDAY_ASSIGNEE_EMAIL did not match exactly one workspace member")
+        raise RuntimeError("The token-authenticated user is not a member of the target workspace")
     columns = call_remote_tool("list_columns", {"board_id": board_id}, post_fn)
     column = select_people_column(columns)
     member = matches[0]
@@ -167,13 +191,14 @@ def assign_configured_user(arguments, post_fn=post):
         "column_id": column["id"],
         "member_id": member["id"],
         "member_email": member["email"],
+        "identity_source": "list_my_tasks filtered by FRIDAY_MCP_API_TOKEN",
     }
 
 
 def handle_message(message, post_fn=post):
     method = message.get("method")
     if method == "tools/call" and message.get("params", {}).get("name") == ASSIGN_TOOL["name"]:
-        result = assign_configured_user(message["params"].get("arguments", {}), post_fn)
+        result = assign_authenticated_user(message["params"].get("arguments", {}), post_fn)
         return {
             "jsonrpc": "2.0",
             "id": message.get("id"),

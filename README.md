@@ -290,11 +290,14 @@ Conteúdo esperado:
 ```dotenv
 FRIDAY_MCP_BASE_URL=https://friday.eletromidia.com.br/api/mcp_sse.php
 FRIDAY_MCP_API_TOKEN=seu_token_friday
-FRIDAY_ASSIGNEE_EMAIL=seu.email@empresa.com
 ```
 
-`FRIDAY_ASSIGNEE_EMAIL` define o responsável automático.
-O e-mail deve existir como membro do workspace.
+O responsável é descoberto usando somente esse token.
+Nenhum e-mail ou ID precisa ser configurado.
+
+O bridge chama `list_my_tasks`, filtrado pelo token.
+Ele encontra a identidade comum aos cards retornados.
+Depois valida o usuário no workspace escolhido.
 
 Boards com várias colunas de pessoas exigem:
 
@@ -407,7 +410,7 @@ Confirme os seguintes campos:
 - `python` possui um caminho válido.
 - Seu host aparece com um caminho válido.
 - `friday_configured` mostra `true`.
-- `friday_assignee.configured` mostra `true`.
+- `friday_identity.source` menciona o token Friday.
 - Os quatro diretórios de agentes são exibidos.
 - `check_model_routing.py` mostra `valid: true`.
 
@@ -467,7 +470,7 @@ Ele inicia descoberta, histórias, execução, revisão e entrega.
 
 Quando a execução começa, o plugin também:
 
-1. Resolve o membro pelo e-mail configurado.
+1. Resolve o usuário autenticado pelo token.
 2. Descobre a coluna Friday do tipo `people`.
 3. Atualiza essa coluna com o ID correto.
 4. Exige confirmação `assigned: true`.
@@ -568,7 +571,7 @@ O plugin pode usar:
 - `create_item`
 - `move_item`
 - `update_cell_value`
-- `assign_configured_user`
+- `assign_authenticated_user`
 - `add_comment`
 - `list_ia_tasks`
 
@@ -612,8 +615,17 @@ python3 ~/plugins/agentic-dev-flow/scripts/check_environment.py
 ```
 
 Confirme `FRIDAY_MCP_BASE_URL` e `FRIDAY_MCP_API_TOKEN`.
-Confirme também `FRIDAY_ASSIGNEE_EMAIL`.
 Depois reinicie o host para recarregar o MCP.
+
+## Token de uma conta sem tarefas
+
+O Friday atual não expõe `get_current_user`.
+Nesse caso, `list_my_tasks` não fornece identidade.
+O plugin interrompe a atribuição com segurança.
+Ele nunca usa e-mail fixo como fallback.
+
+Para suportar contas totalmente novas, o servidor Friday
+deve expor `get_current_user` usando o mesmo token.
 
 ## O host não inicia o fluxo automaticamente
 

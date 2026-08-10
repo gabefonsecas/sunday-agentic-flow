@@ -20,9 +20,8 @@ result = {
     "python": shutil.which("python") or shutil.which("python3"),
     "environment_file": str(env_path) if env_path else None,
     "friday_configured": bool(os.environ.get("FRIDAY_MCP_API_TOKEN") or os.environ.get("FRIDAY_MCP_URL")),
-    "friday_assignee": {
-        "configured": bool(os.environ.get("FRIDAY_ASSIGNEE_EMAIL")),
-        "email": os.environ.get("FRIDAY_ASSIGNEE_EMAIL") or None,
+    "friday_identity": {
+        "source": "FRIDAY_MCP_API_TOKEN via token-scoped list_my_tasks",
         "column": os.environ.get("FRIDAY_ASSIGNEE_COLUMN") or "automatic single people column",
     },
     "agents": {

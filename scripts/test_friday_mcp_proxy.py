@@ -17,13 +17,10 @@ def response(request_id, payload):
 
 class FridayProxyTests(unittest.TestCase):
     def setUp(self):
-        self.original_email = proxy.ASSIGNEE_EMAIL
         self.original_column = proxy.ASSIGNEE_COLUMN
-        proxy.ASSIGNEE_EMAIL = "developer@example.com"
         proxy.ASSIGNEE_COLUMN = ""
 
     def tearDown(self):
-        proxy.ASSIGNEE_EMAIL = self.original_email
         proxy.ASSIGNEE_COLUMN = self.original_column
 
     def test_tools_list_includes_assignment_tool(self):
@@ -40,6 +37,14 @@ class FridayProxyTests(unittest.TestCase):
         def fake_post(message):
             calls.append(message)
             name = message["params"]["name"]
+            if name == "list_my_tasks":
+                return response(
+                    message["id"],
+                    [
+                        {"id": 1, "responsaveis": [{"id": 31, "email": "developer@example.com"}]},
+                        {"id": 2, "responsaveis": [{"id": 31, "email": "developer@example.com"}]},
+                    ],
+                )
             if name == "list_workspace_members":
                 return response(message["id"], [{"id": 31, "email": "developer@example.com"}])
             if name == "list_columns":
@@ -48,7 +53,7 @@ class FridayProxyTests(unittest.TestCase):
                 return response(message["id"], {"success": True})
             raise AssertionError(name)
 
-        result = proxy.assign_configured_user(
+        result = proxy.assign_authenticated_user(
             {"workspace_id": 37, "board_id": 46, "item_id": 1234}, fake_post
         )
 
@@ -58,6 +63,10 @@ class FridayProxyTests(unittest.TestCase):
             calls[-1]["params"]["arguments"],
             {"item_id": 1234, "column_id": 200, "value": "31"},
         )
+
+    def test_empty_token_scoped_tasks_fail_safely(self):
+        with self.assertRaisesRegex(RuntimeError, "get_current_user"):
+            proxy.resolve_authenticated_user([])
 
 
 if __name__ == "__main__":
