@@ -1,0 +1,124 @@
+"""Sunday configuration from TOML and environment variables."""
+
+from dataclasses import dataclass, field
+import os
+from pathlib import Path
+import tomllib
+
+from .paths import config_dir
+from .security import load_env
+
+
+@dataclass(slots=True)
+class ProjectConfig:
+    name: str
+    repository: Path
+    workspace_id: int | None = None
+    board_id: int | None = None
+    intake_group_id: int | None = None
+    states: dict[str, int] = field(default_factory=dict)
+    ready_label: str = "sunday-ready"
+    base_branch: str = "auto"
+    pr_column: str = ""
+    people_column: str = ""
+    publish_stories: bool = True
+
+
+@dataclass(slots=True)
+class Settings:
+    default_host: str = "auto"
+    cross_provider: bool = False
+    strict_model_verification: bool = True
+    watcher_interval: int = 60
+    minimum_confidence: float = 0.7
+    max_phase_attempts: int = 2
+    projects: dict[str, ProjectConfig] = field(default_factory=dict)
+
+    def project_for(self, name: str | None, cwd: Path | None = None) -> ProjectConfig:
+        if name:
+            if name not in self.projects:
+                raise KeyError(f"Unknown project: {name}")
+            return self.projects[name]
+        resolved = (cwd or Path.cwd()).resolve()
+        matches = [
+            project
+            for project in self.projects.values()
+            if resolved == project.repository or project.repository in resolved.parents
+        ]
+        if len(matches) == 1:
+            return matches[0]
+        if len(self.projects) == 1:
+            return next(iter(self.projects.values()))
+        raise RuntimeError("Select a configured project with --project")
+
+
+def config_path() -> Path:
+    return Path(os.environ.get("SUNDAY_CONFIG_FILE", config_dir() / "config.toml")).expanduser()
+
+
+def _project(name: str, data: dict) -> ProjectConfig:
+    return ProjectConfig(
+        name=name,
+        repository=Path(data.get("repository", ".")).expanduser().resolve(),
+        workspace_id=data.get("workspace_id"),
+        board_id=data.get("board_id"),
+        intake_group_id=data.get("intake_group_id"),
+        states={str(key): int(value) for key, value in data.get("states", {}).items()},
+        ready_label=data.get("ready_label", "sunday-ready"),
+        base_branch=data.get("base_branch", "auto"),
+        pr_column=data.get("pr_column", ""),
+        people_column=data.get("people_column", ""),
+        publish_stories=bool(data.get("publish_stories", True)),
+    )
+
+
+def load_settings(path: Path | None = None) -> Settings:
+    load_env()
+    selected = path or config_path()
+    if not selected.is_file():
+        return Settings()
+    data = tomllib.loads(selected.read_text(encoding="utf-8"))
+    runtime = data.get("runtime", {})
+    projects = {
+        name: _project(name, project)
+        for name, project in data.get("projects", {}).items()
+    }
+    return Settings(
+        default_host=runtime.get("default_host", "auto"),
+        cross_provider=bool(runtime.get("cross_provider", False)),
+        strict_model_verification=bool(runtime.get("strict_model_verification", True)),
+        watcher_interval=int(runtime.get("watcher_interval", 60)),
+        minimum_confidence=float(runtime.get("minimum_confidence", 0.7)),
+        max_phase_attempts=int(runtime.get("max_phase_attempts", 2)),
+        projects=projects,
+    )
+
+
+DEFAULT_CONFIG = '''# Sunday configuration. Secrets belong in .env.
+[runtime]
+default_host = "auto"
+cross_provider = false
+strict_model_verification = true
+watcher_interval = 60
+minimum_confidence = 0.70
+max_phase_attempts = 2
+
+[projects.example]
+repository = "~/src/example"
+workspace_id = 0
+board_id = 0
+intake_group_id = 0
+ready_label = "sunday-ready"
+base_branch = "auto"
+pr_column = "Pull Request"
+people_column = "Responsável"
+publish_stories = true
+
+[projects.example.states]
+discovery = 0
+implementation = 0
+verification = 0
+review = 0
+completed = 0
+failed = 0
+'''

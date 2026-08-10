@@ -1,4 +1,4 @@
 interface:
   display_name: "Escrever e publicar histórias"
   short_description: "Transforma pedidos vagos em histórias executáveis"
-  default_prompt: "Detalhe esta demanda e publique histórias rastreáveis no Friday."
+  default_prompt: "Use $write-and-publish-stories para publicar estas histórias."

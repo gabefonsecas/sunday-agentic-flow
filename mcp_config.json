@@ -1,7 +1,7 @@
 {
   "mcpServers": {
     "friday": {
-      "command": "agentic-friday-mcp"
+      "command": "sunday-friday-mcp"
     }
   }
 }

@@ -7,10 +7,10 @@ from pathlib import Path
 
 ROOT = Path(__file__).resolve().parent.parent
 PHASES = {
-    "discovery": "agentic-task-analyst",
-    "implementation": "agentic-implementation-worker",
-    "verification": "agentic-implementation-verifier",
-    "review": "agentic-branch-reviewer",
+    "discovery": "sunday-task-analyst",
+    "implementation": "sunday-implementation-worker",
+    "verification": "sunday-implementation-verifier",
+    "review": "sunday-branch-reviewer",
 }
 
 

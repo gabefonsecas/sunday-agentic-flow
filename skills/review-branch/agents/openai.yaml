@@ -1,4 +1,4 @@
 interface:
   display_name: "Revisar branch"
   short_description: "Revisa uma branch e publica achados rastreáveis"
-  default_prompt: "Revise esta branch por correção, segurança e regressões."
+  default_prompt: "Use $review-branch para revisar esta branch."
