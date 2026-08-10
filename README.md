@@ -38,8 +38,9 @@ O orquestrador escolhe modelos remotos por função:
 | Função | Nível | Codex | Claude | Gemini CLI | Antigravity |
 | --- | --- | --- | --- | --- | --- |
 | Descoberta e resumo | Rápido | `gpt-5.6-terra` | `haiku` | Gemini Flash | `flash` |
-| Implementação e testes | Balanceado | `gpt-5.6` | `sonnet` | Gemini Pro | `pro` |
-| Arquitetura e revisão | Profundo | `gpt-5.6` com esforço maior | `opus` | Gemini Pro | `pro` |
+| Implementação e testes | Balanceado | `gpt-5.6-sol` | `sonnet` | Gemini Pro | `pro` |
+| Verificação independente | Rápido e crítico | `gpt-5.6-terra` | `sonnet` | Gemini Pro | `pro` |
+| Arquitetura e revisão | Profundo | `gpt-5.6-sol` com `xhigh` | `opus` | Gemini Pro | `pro` |
 
 Os nomes exatos podem depender da conta contratada.
 Quando um modelo não estiver disponível, o host herda o modelo ativo.
@@ -56,6 +57,21 @@ A interpolação ocorre na camada semântica:
 - Somente o agente principal altera Friday, Git e PRs.
 
 Não ocorre mistura de pesos entre arquiteturas diferentes.
+
+A transição acontece por delegação entre subagentes.
+O modelo da conversa principal não muda silenciosamente.
+Cada fase abre um contexto especialista independente.
+
+As quatro transições obrigatórias são:
+
+1. Descoberta com o analista rápido.
+2. Implementação com o worker balanceado.
+3. Verificação com um agente independente.
+4. Revisão final com o agente profundo.
+
+O relatório final apresenta um `route ledger`.
+Ele mostra agente, nível, modelo observado e resultado.
+Se o host não suportar subagentes, aparece `degraded`.
 
 ## Compatibilidade
 
@@ -274,6 +290,16 @@ Conteúdo esperado:
 ```dotenv
 FRIDAY_MCP_BASE_URL=https://friday.eletromidia.com.br/api/mcp_sse.php
 FRIDAY_MCP_API_TOKEN=seu_token_friday
+FRIDAY_ASSIGNEE_EMAIL=seu.email@empresa.com
+```
+
+`FRIDAY_ASSIGNEE_EMAIL` define o responsável automático.
+O e-mail deve existir como membro do workspace.
+
+Boards com várias colunas de pessoas exigem:
+
+```dotenv
+FRIDAY_ASSIGNEE_COLUMN=Responsável
 ```
 
 Salve usando `Ctrl+O`, Enter e `Ctrl+X`.
@@ -373,6 +399,7 @@ Execute:
 ```bash
 cd ~/plugins/agentic-dev-flow
 python3 scripts/check_environment.py
+python3 scripts/check_model_routing.py
 ```
 
 Confirme os seguintes campos:
@@ -380,7 +407,9 @@ Confirme os seguintes campos:
 - `python` possui um caminho válido.
 - Seu host aparece com um caminho válido.
 - `friday_configured` mostra `true`.
+- `friday_assignee.configured` mostra `true`.
 - Os quatro diretórios de agentes são exibidos.
+- `check_model_routing.py` mostra `valid: true`.
 
 Confira o bridge Friday:
 
@@ -435,6 +464,14 @@ Não repita o processo operacional no pedido.
 
 O plugin detecta a solicitação de desenvolvimento automaticamente.
 Ele inicia descoberta, histórias, execução, revisão e entrega.
+
+Quando a execução começa, o plugin também:
+
+1. Resolve o membro pelo e-mail configurado.
+2. Descobre a coluna Friday do tipo `people`.
+3. Atualiza essa coluna com o ID correto.
+4. Exige confirmação `assigned: true`.
+5. Somente depois inicia mudanças no código.
 
 ## Solicitações incompletas
 
@@ -531,6 +568,7 @@ O plugin pode usar:
 - `create_item`
 - `move_item`
 - `update_cell_value`
+- `assign_configured_user`
 - `add_comment`
 - `list_ia_tasks`
 
@@ -574,6 +612,7 @@ python3 ~/plugins/agentic-dev-flow/scripts/check_environment.py
 ```
 
 Confirme `FRIDAY_MCP_BASE_URL` e `FRIDAY_MCP_API_TOKEN`.
+Confirme também `FRIDAY_ASSIGNEE_EMAIL`.
 Depois reinicie o host para recarregar o MCP.
 
 ## O host não inicia o fluxo automaticamente

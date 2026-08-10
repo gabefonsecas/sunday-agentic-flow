@@ -1,6 +1,6 @@
 {
   "name": "agentic-dev-flow",
-  "version": "0.2.0",
+  "version": "0.2.1",
   "description": "Portable development orchestration with Friday and automatic remote model routing.",
   "mcpServers": {
     "friday": {

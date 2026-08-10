@@ -12,14 +12,18 @@ Do not require a skill name, template, or orchestration prompt.
 ## Workflow
 
 1. Read `references/operating-contract.md`.
-2. Discover the repository through the `discover-project-context` workflow.
-3. Resolve the Friday workspace, board, groups, and relevant columns.
-4. Convert the request into stories through `write-and-publish-stories`.
-5. Order stories by dependencies and risk.
-6. Execute each story through `execute-managed-story`.
-7. Deliver one coherent PR through `deliver-pull-request`.
-8. Run `review-branch` before declaring completion.
-9. Synchronize final evidence and PR link with Friday.
+2. Read `references/host-dispatch.md`.
+3. Dispatch the configured task analyst before planning.
+4. Resolve the Friday workspace, board, groups, and relevant columns.
+5. Convert the request into stories through `write-and-publish-stories`.
+6. Order stories by dependencies and risk.
+7. Dispatch the configured implementation worker for each coding unit.
+8. Execute each story through `execute-managed-story`.
+9. Dispatch the configured implementation verifier after code changes.
+10. Deliver one coherent PR through `deliver-pull-request`.
+11. Dispatch the configured branch reviewer before completion.
+12. Run `review-branch` using the independent review result.
+13. Synchronize final evidence and PR link with Friday.
 
 ## Control rules
 
@@ -29,15 +33,19 @@ Do not require a skill name, template, or orchestration prompt.
 - Use read-only discovery before external mutations.
 - Never invent IDs, group meanings, column IDs, checks, or URLs.
 - Keep card state aligned with actual work state.
+- Assign the configured Friday user when execution begins.
 - Request direction only when a decision changes product scope.
 - Stop before destructive administration or ambiguous publication.
 
 ## Model collaboration
 
-Use `optimize-model-collaboration` automatically for discovery, implementation,
-verification, architecture, and review. Route each bounded role to a suitable
-remote model exposed by the active host. The primary agent owns external state,
-final synthesis, and all user-visible decisions.
+Use `optimize-model-collaboration` automatically for every managed task.
+The four dispatch phases are mandatory when subagents are available.
+Each phase must use a fresh specialist context.
+Do not replace dispatch with silent primary-model reasoning.
+Record requested agent, tier, and reported model in the route ledger.
+If dispatch is unavailable, record degraded mode explicitly.
+The primary agent owns external state and final synthesis.
 
 ## Completion contract
 
