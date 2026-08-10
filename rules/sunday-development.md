@@ -1,6 +1,9 @@
 # Sunday development rules
 
 - Use `sunday run` for managed development tasks.
+- Route natural-language task creation through `sunday create` internally.
+- Infer the project from the current Git repository.
+- Never require the user to type Sunday runtime commands after setup.
 - Never reproduce Sunday state transitions manually.
 - Read repository instructions before any implementation.
 - Treat Friday as workflow-state truth.

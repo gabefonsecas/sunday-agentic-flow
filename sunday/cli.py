@@ -31,6 +31,14 @@ def parser() -> argparse.ArgumentParser:
     run.add_argument("task")
     run.add_argument("--project")
     run.add_argument("--host", default="auto", choices=("auto", "codex", "claude", "gemini", "antigravity"))
+    create = commands.add_parser("create", help="Create agentically detailed Friday tasks")
+    create.add_argument("request")
+    create.add_argument("--project")
+    create.add_argument("--host", default="auto", choices=("auto", "codex", "claude", "gemini", "antigravity"))
+    create.add_argument("--count", type=int, default=1)
+    create.add_argument("--execute", action="store_true", help="Start the first created task")
+    create.add_argument("--no-assign", action="store_true", help="Leave created tasks unassigned")
+    create.add_argument("--allow-duplicate", action="store_true")
     watch = commands.add_parser("watch", help="Watch labeled Friday tasks")
     watch.add_argument("--project")
     watch.add_argument("--host", default="auto", choices=("auto", "codex", "claude", "gemini", "antigravity"))
@@ -124,6 +132,19 @@ def main(argv: list[str] | None = None) -> None:
         _json(_run_dict(engine.resume(run.id, project, args.approve)))
         return
     project = settings.project_for(getattr(args, "project", None))
+    if args.command == "create":
+        from sunday.task_creation import TaskCreationService
+        service = TaskCreationService(settings, store=store)
+        result = service.create(
+            args.request, project, args.host, args.count,
+            assign=not args.no_assign, allow_duplicate=args.allow_duplicate,
+        )
+        if args.execute:
+            engine.tasks = service.tasks
+            run = engine.start(str(result["tasks"][0]["id"]), project, args.host)
+            result["run"] = _run_dict(run)
+        _json(result)
+        return
     if args.command == "run":
         _json(_run_dict(engine.start(args.task, project, args.host)))
         return

@@ -1,6 +1,9 @@
 # Sunday
 
 Use `sunday-development-task` for managed development work.
+Use `write-and-publish-stories` when the user asks Sunday to create a Friday task.
+Infer the project from the current Git repository.
+Invoke Sunday commands internally. Never tell the user to copy them.
 Run `sunday run <friday-item>` instead of reproducing phases manually.
 Use `sunday review <branch-or-pr>` for independent review.
 Use `sunday status <run-id>` for progress.

@@ -5,6 +5,7 @@ class FakeTasks:
     def __init__(self, title="Safe task"):
         self.task = {"id": 42, "name": title, "description": "Deliver tested behavior", "tags": [{"name": "sunday-ready"}]}
         self.calls = []
+        self.created = []
 
     def authenticate(self): return {"authenticated": True}
     def get_current_user(self, workspace_id): return {"id": 7, "email": "user@example.com"}
@@ -15,7 +16,11 @@ class FakeTasks:
         return {"assigned": True, "member_id": 7, "member_email": "user@example.com", "identity_source": "token"}
     def create_story(self, story, board_id, group_id):
         self.calls.append(("story", story["title"]))
-        return {"id": 100 + len(self.calls)}
+        item = {**story, "id": 100 + len(self.calls)}
+        self.created.append(item)
+        return item
+    def find_story(self, marker, group_id):
+        return next((item for item in self.created if marker in item["description"]), None)
     def transition(self, item_id, group_id):
         self.calls.append(("transition", item_id, group_id))
         return {"moved": True}
