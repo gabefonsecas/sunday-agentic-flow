@@ -1,0 +1,16 @@
+{
+  "name": "agentic-dev-flow-local",
+  "owner": {
+    "name": "Local developer"
+  },
+  "description": "Portable automatic agentic development workflow.",
+  "plugins": [
+    {
+      "name": "agentic-dev-flow",
+      "source": "./",
+      "description": "Orchestrate development through Friday, remote model routing, and pull requests.",
+      "category": "Development",
+      "strict": true
+    }
+  ]
+}

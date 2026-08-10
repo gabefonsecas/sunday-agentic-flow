@@ -1,0 +1,32 @@
+{
+  "name": "agentic-dev-flow",
+  "version": "0.1.0+codex.20260810181729",
+  "description": "Portable development orchestration with Friday and automatic remote model routing.",
+  "author": {
+    "name": "Local developer"
+  },
+  "skills": "./skills/",
+  "interface": {
+    "displayName": "Agentic Dev Flow",
+    "shortDescription": "Orchestrate development from request through reviewed PR.",
+    "longDescription": "Turn vague requests into Friday stories, implement them under repository rules, route specialist work across host-provided models, publish pull requests, and review branches.",
+    "developerName": "Local developer",
+    "category": "Developer Tools",
+    "capabilities": [
+      "Read",
+      "Write",
+      "MCP",
+      "Multi-agent"
+    ],
+    "defaultPrompt": [
+      "Conduza esta tarefa at\u00e9 uma PR vinculada ao Friday.",
+      "Revise esta branch e publique os achados no Friday.",
+      "Implemente esta demanda seguindo as regras do projeto."
+    ]
+  },
+  "mcpServers": {
+    "friday": {
+      "command": "agentic-friday-mcp"
+    }
+  }
+}
