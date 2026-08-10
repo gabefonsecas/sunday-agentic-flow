@@ -17,6 +17,17 @@ from sunday.paths import bin_dir, config_dir
 
 ROOT = Path(__file__).resolve().parent.parent
 PLUGIN_NAME = "sunday-agentic-flow"
+COPY_IGNORE = shutil.ignore_patterns(
+    ".git", ".env", "__pycache__", "*.pyc", "*.egg-info", "build", "dist"
+)
+
+
+def _remove_tree(path: Path) -> None:
+    def writable(function, target, error):
+        os.chmod(target, stat.S_IWRITE)
+        function(target)
+
+    shutil.rmtree(path, onerror=writable)
 
 
 def _hash(path: Path) -> str | None:
@@ -53,7 +64,7 @@ def transaction():
         except Exception:
             for target, backup in reversed(backups):
                 if target.is_dir() and not target.is_symlink():
-                    shutil.rmtree(target)
+                    _remove_tree(target)
                 elif target.exists() or target.is_symlink():
                     target.unlink()
                 if backup:
@@ -71,7 +82,7 @@ def _copy(source: Path, target: Path, prepare) -> None:
     prepare(target)
     target.parent.mkdir(parents=True, exist_ok=True)
     if target.is_dir() and not target.is_symlink():
-        shutil.rmtree(target)
+        _remove_tree(target)
     elif target.exists() or target.is_symlink():
         target.unlink()
     shutil.copy2(source, target)
@@ -81,11 +92,11 @@ def _link(source: Path, target: Path, prepare) -> None:
     prepare(target)
     target.parent.mkdir(parents=True, exist_ok=True)
     if target.is_dir() and not target.is_symlink():
-        shutil.rmtree(target)
+        _remove_tree(target)
     elif target.exists() or target.is_symlink():
         target.unlink()
     if os.name == "nt":
-        shutil.copytree(source, target)
+        shutil.copytree(source, target, ignore=COPY_IGNORE)
     else:
         target.symlink_to(source, target_is_directory=True)
 
@@ -192,7 +203,7 @@ def uninstall() -> dict:
             path.unlink()
             removed.append(str(path))
         elif path.is_dir():
-            shutil.rmtree(path)
+            _remove_tree(path)
             removed.append(str(path))
         elif path.is_file() and (not item.get("sha256") or _hash(path) == item["sha256"]):
             path.unlink()
