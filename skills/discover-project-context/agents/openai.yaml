@@ -1,0 +1,4 @@
+interface:
+  display_name: "Descobrir contexto do projeto"
+  short_description: "Mapeia regras, arquitetura, testes e fluxo Git"
+  default_prompt: "Analise este projeto e produza um contexto operacional confiável."

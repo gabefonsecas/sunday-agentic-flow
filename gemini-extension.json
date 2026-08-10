@@ -1,0 +1,11 @@
+{
+  "name": "agentic-dev-flow",
+  "version": "0.2.0",
+  "description": "Portable development orchestration with Friday and automatic remote model routing.",
+  "mcpServers": {
+    "friday": {
+      "command": "agentic-friday-mcp"
+    }
+  },
+  "contextFileName": "GEMINI.md"
+}

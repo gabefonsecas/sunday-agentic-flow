@@ -1,0 +1,4 @@
+interface:
+  display_name: "Entregar pull request"
+  short_description: "Publica branch e vincula a PR ao Friday"
+  default_prompt: "Prepare e publique a PR desta entrega e vincule-a ao Friday."

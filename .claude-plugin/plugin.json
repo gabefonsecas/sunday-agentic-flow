@@ -1,0 +1,14 @@
+{
+  "$schema": "https://json.schemastore.org/claude-code-plugin-manifest.json",
+  "name": "agentic-dev-flow",
+  "displayName": "Agentic Dev Flow",
+  "version": "0.2.0",
+  "description": "Portable development orchestration with Friday and automatic remote model routing.",
+  "author": {"name": "Local developer"},
+  "skills": "./skills/",
+  "mcpServers": {
+    "friday": {
+      "command": "agentic-friday-mcp"
+    }
+  }
+}

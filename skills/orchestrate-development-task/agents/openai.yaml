@@ -1,0 +1,6 @@
+interface:
+  display_name: "Orquestrar tarefa de desenvolvimento"
+  short_description: "Conduz uma tarefa até PR e atualização no Friday"
+  default_prompt: "Conduza esta tarefa do entendimento até a entrega e atualização no Friday."
+policy:
+  allow_implicit_invocation: true
