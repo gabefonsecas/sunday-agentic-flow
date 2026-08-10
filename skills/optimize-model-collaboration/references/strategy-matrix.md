@@ -49,7 +49,7 @@ Never use self-reported confidence as the only routing signal.
 
 ## Host mappings
 
-- Codex: fast uses `gpt-5.6-terra`; balanced and deep use `gpt-5.6` with increasing reasoning effort.
+- Codex: discovery uses `gpt-5.6-terra`; implementation uses `gpt-5.6-sol`; verification returns to `gpt-5.6-terra`; deep review uses `gpt-5.6-sol` with `xhigh` effort.
 - Claude Code: fast uses `haiku`; balanced uses `sonnet`; deep uses `opus`.
 - Gemini CLI: fast uses Gemini Flash; balanced and deep use Gemini Pro.
 - Antigravity: fast uses `flash`; balanced and deep use `pro`.

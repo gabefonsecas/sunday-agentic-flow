@@ -16,7 +16,11 @@ Read `references/story-template.md` before publishing.
 7. Reuse the requested board and intake group.
 8. Call `create_item` once per approved story.
 9. Record returned item IDs and preserve dependency order.
-10. Add cross-links through `add_comment` when useful.
+10. Resolve the configured assignee before execution begins.
+11. Add cross-links through `add_comment` when useful.
+
+Story publication does not imply active execution.
+Call `assign_configured_user` only when a story enters execution.
 
 Do not create workspaces, boards, groups, or columns implicitly.
 Do not publish duplicate cards. Search existing group items first.

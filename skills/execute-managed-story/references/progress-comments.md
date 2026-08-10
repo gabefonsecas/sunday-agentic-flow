@@ -2,7 +2,12 @@
 
 ## Started
 
-`Started on <branch>. Scope: <one sentence>.`
+```markdown
+Started on `<branch>`.
+Scope: <one sentence>.
+Assigned to: <configured Friday email>.
+Model route: <implementation agent and tier>.
+```
 
 ## Validated
 
