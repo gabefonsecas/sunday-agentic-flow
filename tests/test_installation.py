@@ -1,4 +1,5 @@
 import json
+import os
 from pathlib import Path
 import tempfile
 import unittest
@@ -27,17 +28,19 @@ class InstallationTests(unittest.TestCase):
     def test_install_and_uninstall_managed_files(self):
         result = installation.install()
         self.assertTrue(result["installed"])
-        self.assertTrue((self.home / ".local" / "bin" / "sunday").is_file())
+        launcher = "sunday.cmd" if os.name == "nt" else "sunday"
+        self.assertTrue((self.home / ".local" / "bin" / launcher).is_file())
         self.assertTrue((self.home / ".config" / "sunday" / "config.toml").is_file())
         marketplace = json.loads((self.home / ".agents" / "plugins" / "marketplace.json").read_text(encoding="utf-8"))
         self.assertEqual(marketplace["plugins"][0]["name"], "sunday-agentic-flow")
         removed = installation.uninstall()
         self.assertTrue(removed["uninstalled"])
-        self.assertFalse((self.home / ".local" / "bin" / "sunday").exists())
+        self.assertFalse((self.home / ".local" / "bin" / launcher).exists())
         self.assertTrue((self.home / ".config" / "sunday" / ".env").exists())
 
     def test_install_rolls_back_when_marketplace_fails(self):
         with patch.object(installation, "_marketplace", side_effect=RuntimeError("broken")):
             with self.assertRaisesRegex(RuntimeError, "broken"):
                 installation.install()
-        self.assertFalse((self.home / ".local" / "bin" / "sunday").exists())
+        launcher = "sunday.cmd" if os.name == "nt" else "sunday"
+        self.assertFalse((self.home / ".local" / "bin" / launcher).exists())
