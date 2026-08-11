@@ -848,6 +848,8 @@ A integração contínua testa:
 - segurança e redaction.
 
 Releases geram ZIP portátil, checksum SHA-256 e atestado de proveniência.
+O gate WSL 2 roda numa VM Windows descartável hospedada pelo GitHub e não
+depende de máquinas ou permissões locais.
 
 # Limitações conhecidas
 
