@@ -17,10 +17,13 @@ if ($distributionList -notmatch "Ubuntu\s+(?:Stopped|Running)\s+2") {
     throw "Ubuntu was not installed as a WSL 2 distribution"
 }
 
-$linuxPath = (& wsl.exe --distribution $distribution -- wslpath -a $env:GITHUB_WORKSPACE).Trim()
-if (-not $linuxPath) {
-    throw "Unable to resolve the GitHub workspace inside WSL 2"
+$workspace = $env:GITHUB_WORKSPACE
+if ($workspace -notmatch '^(?<drive>[A-Za-z]):\\(?<path>.+)$') {
+    throw "Unable to parse the GitHub workspace path: $workspace"
 }
+$drive = $Matches["drive"].ToLowerInvariant()
+$relativePath = $Matches["path"].Replace('\', '/')
+$linuxPath = "/mnt/$drive/$relativePath"
 
 $command = "cd '$linuxPath' && python3 -m unittest $TestTarget"
 & wsl.exe --distribution $distribution -- bash -lc $command
