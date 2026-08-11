@@ -9,7 +9,7 @@ from sunday import __version__
 from sunday.config import config_path, load_settings
 from sunday.paths import database_path
 from sunday.security import env_path, load_env
-from sunday.routing import PROFILES
+from sunday.routing import AGENTS, MODEL_POOLS
 
 
 def _command(command: list[str]) -> dict:
@@ -50,7 +50,19 @@ def doctor(network: bool = False) -> dict:
         "github": _command(["gh", "auth", "status"]),
         "git": _command(["git", "--version"]),
         "hosts": hosts,
-        "routing": {host: {phase: {"agent": values[0], "tier": values[1], "model": values[2], "effort": values[3]} for phase, values in phases.items()} for host, phases in PROFILES.items()},
+        "routing": {
+            host: {
+                phase: {
+                    "agent": AGENTS[phase],
+                    "pool": [
+                        {"tier": candidate.tier, "model": candidate.model, "effort": candidate.effort}
+                        for candidate in candidates
+                    ],
+                }
+                for phase, candidates in phases.items()
+            }
+            for host, phases in MODEL_POOLS.items()
+        },
         "projects": {
             name: {"repository": str(project.repository), "exists": project.repository.is_dir()}
             for name, project in settings.projects.items()

@@ -1,8 +1,8 @@
 ---
 name: sunday-implementation-verifier
 description: Use after implementation to verify acceptance criteria, tests, project rules, and regression risks independently.
-model: sonnet
-effort: high
+model: claude-sonnet-4-6
+effort: medium
 disallowedTools: Write, Edit
 ---
 

@@ -2,7 +2,7 @@
 name: sunday-implementation-verifier
 description: Use after implementation to verify acceptance criteria, tests, project rules, and regression risks independently.
 kind: local
-model: gemini-3-pro-preview
+model: flash
 temperature: 0.1
 max_turns: 30
 ---

@@ -2,6 +2,12 @@
 
 ## Unreleased
 
+- Added live model-transition output and terminal, Markdown, Mermaid, and JSON route dashboards.
+- Expanded Codex pools across GPT-5.4 mini, GPT-5.4, GPT-5.5, and GPT-5.6.
+- Expanded Claude, Gemini, and Antigravity pools across economy through deep tiers.
+- Added deterministic complexity classification before model selection.
+- Marked Friday, Git, and GitHub effects explicitly as model-free operations.
+- Added risk-aware routing and retry handling for host execution exceptions.
 - Added AI-assisted first-run Friday configuration using only the token and repository context.
 - Added strict live-catalog validation and atomic `config.toml` persistence.
 - Scoped the watcher to all non-completed tasks assigned to the token user on the selected board.
