@@ -2,6 +2,8 @@
 
 ## Unreleased
 
+- Added Python 3.10 and Ubuntu 22.04/WSL compatibility through `tomli`.
+- Replaced the missing `tomllib` traceback with an actionable installer diagnostic.
 - Added conversational Friday task creation through Sunday skills.
 - Added current Git repository inference and a reusable default Friday mapping.
 - Added model-assisted task detailing, token-based assignment, and create-then-execute flow.
