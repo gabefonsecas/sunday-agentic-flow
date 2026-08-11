@@ -6,7 +6,7 @@ from pathlib import Path
 import sys
 import time
 
-from sunday.config import load_settings
+from sunday.config import config_path, load_settings
 from sunday.diagnostics import doctor
 from sunday.engine import SundayEngine
 from sunday.installation import install, uninstall, update
@@ -132,6 +132,17 @@ def main(argv: list[str] | None = None) -> None:
         _json(_run_dict(engine.resume(run.id, project, args.approve)))
         return
     project = settings.project_for(getattr(args, "project", None))
+    if args.command in {"create", "run", "watch"}:
+        from sunday.autoconfig import AutoConfigurationService, needs_configuration
+        if needs_configuration(project):
+            request = (
+                args.request if args.command == "create"
+                else f"Execute existing Friday task {args.task}" if args.command == "run"
+                else "Watch this project's ready Friday development tasks"
+            )
+            project = AutoConfigurationService(settings).configure(
+                project.repository, request, args.host, args.config or config_path()
+            )
     if args.command == "create":
         from sunday.task_creation import TaskCreationService
         service = TaskCreationService(settings, store=store)
@@ -156,7 +167,10 @@ def main(argv: list[str] | None = None) -> None:
         adapter = FridayAdapter()
         engine.tasks = adapter
         while True:
-            for task in adapter.list_ready_tasks(project.ready_label):
+            for task in adapter.list_ready_tasks(
+                project.ready_label, int(project.board_id),
+                str(project.states.get("completed", "")),
+            ):
                 reference = str(task["id"])
                 previous = store.latest_for_task(reference)
                 if previous and previous.state in {"completed", "paused"}:

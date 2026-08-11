@@ -17,6 +17,14 @@ class ConfigSecurityTests(unittest.TestCase):
         self.assertEqual(settings.default_host, "claude")
         self.assertEqual(settings.projects["app"].states["completed"], 9)
 
+    def test_status_values_can_be_strings(self):
+        with tempfile.TemporaryDirectory() as temp:
+            path = Path(temp) / "config.toml"
+            path.write_text('''[projects.app]\nrepository="."\nstatus_column="201"\n[projects.app.states]\nimplementation="working"\nfailed="stuck"\n''', encoding="utf-8")
+            project = load_settings(path).projects["app"]
+        self.assertEqual(project.status_column, "201")
+        self.assertEqual(project.states["implementation"], "working")
+
     def test_tokens_and_query_strings_are_redacted(self):
         with patch.dict(os.environ, {"FRIDAY_MCP_API_TOKEN": "super-secret-token"}, clear=False):
             value = redact({"url": "https://test/?api_token=super-secret-token", "api_token": "raw"})

@@ -64,3 +64,25 @@ class EngineTests(unittest.TestCase):
         first = self.engine.start("42", self.project, "codex")
         with self.assertRaisesRegex(RuntimeError, first.id):
             self.engine.start("42", self.project, "codex")
+
+    def test_status_column_is_updated_instead_of_moving_groups(self):
+        states = {
+            "discovery": "working", "stories": "working", "publication": "working",
+            "implementation": "working", "verification": "qa", "review": "review",
+            "pull_request": "release", "completed": "done",
+        }
+        project = ProjectConfig(
+            "status-board", self.repository, workspace_id=1, board_id=2,
+            intake_group_id=3, states=states, status_column="201",
+        )
+        engine = SundayEngine(
+            Settings(projects={"status-board": project}), self.store,
+            self.tasks, self.git, self.hosts,
+        )
+        engine.start("42", project, "codex")
+        status_values = [call[4] for call in self.tasks.calls if call[0] == "status"]
+        self.assertEqual(
+            status_values,
+            ["working", "working", "working", "working", "qa", "review", "release", "done"],
+        )
+        self.assertFalse(any(call[0] == "transition" for call in self.tasks.calls))
