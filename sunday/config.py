@@ -20,11 +20,12 @@ class ProjectConfig:
     workspace_id: int | None = None
     board_id: int | None = None
     intake_group_id: int | None = None
-    states: dict[str, int] = field(default_factory=dict)
+    states: dict[str, int | str] = field(default_factory=dict)
     ready_label: str = "sunday-ready"
     base_branch: str = "auto"
     pr_column: str = ""
     people_column: str = ""
+    status_column: str = ""
     publish_stories: bool = True
 
 
@@ -84,11 +85,12 @@ def _project(name: str, data: dict) -> ProjectConfig:
         workspace_id=data.get("workspace_id"),
         board_id=data.get("board_id"),
         intake_group_id=data.get("intake_group_id"),
-        states={str(key): int(value) for key, value in data.get("states", {}).items()},
+        states={str(key): value for key, value in data.get("states", {}).items()},
         ready_label=data.get("ready_label", "sunday-ready"),
         base_branch=data.get("base_branch", "auto"),
         pr_column=data.get("pr_column", ""),
         people_column=data.get("people_column", ""),
+        status_column=data.get("status_column", ""),
         publish_stories=bool(data.get("publish_stories", True)),
     )
 
@@ -135,13 +137,6 @@ ready_label = "sunday-ready"
 base_branch = "auto"
 pr_column = "Pull Request"
 people_column = "Responsável"
+status_column = ""
 publish_stories = true
-
-[projects.example.states]
-discovery = 0
-implementation = 0
-verification = 0
-review = 0
-completed = 0
-failed = 0
 '''

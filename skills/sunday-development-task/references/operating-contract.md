@@ -4,8 +4,9 @@
 
 `intake -> discovery -> stories -> publication -> implementation -> verification -> review -> pull_request -> completed`
 
-Map these semantic states onto existing Friday groups. Never create or rename
-groups unless explicitly requested.
+Map semantic states onto a Friday status column when `status_column` is configured.
+Use group movement only for legacy boards whose groups represent workflow states.
+Never create or rename groups, columns, or status options unless explicitly requested.
 
 ## Evidence ledger
 
@@ -24,6 +25,12 @@ Keep these facts during execution:
 
 Sunday resolves identity from the token before implementation.
 No fixed Friday user ID is permitted.
+
+## First-run configuration gate
+
+Use the discovery model to select a mapping from the live Friday catalog and current repository.
+Validate every selected workspace, board, group, column, and status option before persisting it.
+Never require manual ID discovery when a token and supported host are available.
 
 ## Model route gate
 

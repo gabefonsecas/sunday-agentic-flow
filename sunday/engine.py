@@ -112,6 +112,7 @@ class SundayEngine:
         except UncertainEffectError as exc:
             run = self.store.get(run_id)
             self.store.event(run_id, "effect.uncertain", run.state, {"error": str(exc)})
+            self._sync_failed_safely(run, project)
             return self.store.transition(run_id, "paused", {"reason": str(exc)})
         except Exception as exc:
             run = self.store.get(run_id)
@@ -128,6 +129,7 @@ class SundayEngine:
                     )
             except Exception as comment_error:
                 self.store.event(run_id, "friday.comment_failed", run.state, {"error": str(comment_error)})
+            self._sync_failed_safely(run, project)
             return self.store.transition(run_id, "paused", {"reason": str(exc)})
 
     def _phase_intake(self, run: Run, project: ProjectConfig) -> None:
@@ -143,7 +145,7 @@ class SundayEngine:
                 task, int(project.workspace_id), int(project.board_id), project.people_column
             ),
         )
-        self.store.update_metadata(run.id, {
+        run = self.store.update_metadata(run.id, {
             "task": task, "task_id": task_id, "title": task_title(task),
             "description": task_description(task), "claim": claim, "repository_state": repository,
         })
@@ -288,13 +290,30 @@ class SundayEngine:
         return payload
 
     def _sync_friday(self, run: Run, project: ProjectConfig, state: str) -> None:
-        group_id = project.states.get(state)
-        if not group_id or not run.metadata.get("task_id"):
+        target = project.states.get(state)
+        if target is None or target == "" or not run.metadata.get("task_id"):
+            return
+        if project.status_column:
+            self._effect(
+                run, f"friday:status:{state}",
+                lambda: self._tasks().set_status(
+                    int(run.metadata["task_id"]), int(project.board_id),
+                    project.status_column, str(target),
+                ),
+            )
             return
         self._effect(
             run, f"friday:transition:{state}",
-            lambda: self._tasks().transition(int(run.metadata["task_id"]), group_id),
+            lambda: self._tasks().transition(int(run.metadata["task_id"]), int(target)),
         )
+
+    def _sync_failed_safely(self, run: Run, project: ProjectConfig) -> None:
+        try:
+            self._sync_friday(run, project, "failed")
+        except Exception as exc:
+            self.store.event(
+                run.id, "friday.failed_state_sync_failed", run.state, {"error": str(exc)}
+            )
 
     def _base_branch(self, project: ProjectConfig, run: Run) -> str:
         if project.base_branch in {"main", "homolog"}:

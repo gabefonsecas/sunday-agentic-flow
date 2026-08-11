@@ -24,6 +24,9 @@ class FakeTasks:
     def transition(self, item_id, group_id):
         self.calls.append(("transition", item_id, group_id))
         return {"moved": True}
+    def set_status(self, item_id, board_id, column, value):
+        self.calls.append(("status", item_id, board_id, column, value))
+        return {"updated": True}
     def comment(self, item_id, text):
         self.calls.append(("comment", item_id, text))
         return {"commented": True}
