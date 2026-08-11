@@ -86,11 +86,11 @@ class RunStoreTests(unittest.TestCase):
 
     def test_heartbeat_context_renews_long_running_lease(self):
         path = Path(self.temp.name) / "heartbeat.db"
-        owner = RunStore(path, lease_seconds=0.2, heartbeat_seconds=0.03)
+        owner = RunStore(path, lease_seconds=1.0, heartbeat_seconds=0.03)
         run = owner.create("99", "demo", "codex")
         with owner.heartbeat_lease(run.id):
-            time.sleep(0.3)
-            contender = RunStore(path, lease_seconds=0.2, owner_id="contender")
+            time.sleep(1.2)
+            contender = RunStore(path, lease_seconds=1.0, owner_id="contender")
             with self.assertRaises(LeaseLostError):
                 contender.acquire_lease(run.id)
 
