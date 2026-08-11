@@ -124,6 +124,7 @@ Choose the best Friday workspace and software-development board for the request.
 with a people column and a rich status workflow. Choose an intake group appropriate for development.
 Map every Sunday phase to an existing status option ID. Never invent an ID. If the board genuinely
 uses groups as workflow states, leave status_column empty and map phases to group IDs instead.
+Choose a checkbox column used to identify work performed with AI when one exists.
 
 Repository: {repository}
 Request: {request}
@@ -132,6 +133,7 @@ Live Friday catalog: {json.dumps(catalog, ensure_ascii=False)}
 Return exactly one single-line marker with valid JSON and no markdown fences:
 SUNDAY_CONFIG: {{"workspace_id":1,"board_id":2,"intake_group_id":3,
 "people_column":"column-id","status_column":"status-column-id","pr_column":"",
+"ai_column":"ai-checkbox-column-id",
 "states":{{"discovery":"option-id","stories":"option-id","publication":"option-id",
 "implementation":"option-id","verification":"option-id","review":"option-id",
 "pull_request":"option-id","completed":"option-id","failed":"option-id"}}}}
@@ -194,11 +196,19 @@ SUNDAY_CONFIG: {{"workspace_id":1,"board_id":2,"intake_group_id":3,
             for item in columns
         ):
             raise ValueError("AI selected an invalid pull-request column")
+        ai_column = str(selected.get("ai_column", ""))
+        if ai_column and not any(
+            str(item.get("id")) == ai_column and item.get("type") == "checkbox"
+            for item in columns
+        ):
+            raise ValueError("AI selected an invalid AI checkbox column")
         return ProjectConfig(
             name=repository.name, repository=repository,
             workspace_id=workspace_id, board_id=board_id, intake_group_id=group_id,
             states=normalized_states, base_branch="auto", pr_column=pr_column,
-            people_column=people_column, status_column=status_column, publish_stories=True,
+            people_column=people_column, status_column=status_column,
+            ai_column=ai_column,
+            publish_stories=True,
         )
 
     def _save(self, project: ProjectConfig, destination: Path) -> None:
@@ -259,6 +269,7 @@ def _toml(settings: Settings) -> str:
             f"board_id = {project.board_id}",
             f"intake_group_id = {project.intake_group_id}",
             f"ready_label = {_quoted(project.ready_label)}",
+            f"ai_column = {_quoted(project.ai_column)}",
             f"base_branch = {_quoted(project.base_branch)}",
             f"pr_column = {_quoted(project.pr_column)}",
             f"people_column = {_quoted(project.people_column)}",

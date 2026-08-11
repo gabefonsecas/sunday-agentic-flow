@@ -145,9 +145,18 @@ class SundayEngine:
                 task, int(project.workspace_id), int(project.board_id), project.people_column
             ),
         )
+        ai_mark = None
+        if project.ai_column:
+            ai_mark = self._effect(
+                run, "friday:mark_ai",
+                lambda: self._tasks().mark_ai(
+                    task_id, int(project.board_id), project.ai_column
+                ),
+            )
         run = self.store.update_metadata(run.id, {
             "task": task, "task_id": task_id, "title": task_title(task),
-            "description": task_description(task), "claim": claim, "repository_state": repository,
+            "description": task_description(task), "claim": claim, "ai_mark": ai_mark,
+            "repository_state": repository,
         })
         self._sync_friday(run, project, "discovery")
         self.store.transition(run.id, "discovery")

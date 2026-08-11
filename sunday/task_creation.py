@@ -159,6 +159,10 @@ class TaskCreationService:
                         int(project.workspace_id), int(project.board_id), project.people_column,
                     )
                 entry["assignment"] = assignment
+                if project.ai_column:
+                    entry["ai_mark"] = self.tasks.mark_ai(
+                        item_id, int(project.board_id), project.ai_column
+                    )
                 self.store.update_operation(operation.id, "started", {
                     **identity, "operation_id": operation.id, "published": published,
                 })

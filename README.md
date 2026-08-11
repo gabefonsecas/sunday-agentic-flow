@@ -400,6 +400,7 @@ base_branch = "auto"
 pr_column = ""
 people_column = "200"
 status_column = "201"
+ai_column = "298"
 publish_stories = true
 
 [projects.mustafar.states]
@@ -430,6 +431,7 @@ Significado dos campos:
 - `pr_column`: coluna de link da pull request;
 - `people_column`: coluna de responsável;
 - `status_column`: coluna de status atualizada durante a execução;
+- `ai_column`: checkbox usado somente para identificar trabalho realizado pelo Sunday;
 - `states`: mapeamento opcional das fases para opções da coluna de status.
 
 Quando `status_column` está configurada, os valores de `states` são IDs das opções de status.
@@ -439,6 +441,9 @@ Em boards legados onde os próprios grupos representam o workflow, omita `status
 IDs numéricos de grupos em `states`. Nesse modo, Sunday movimenta o card com `move_item`.
 
 Se `states` for omitido manualmente, todo o fluxo continua funcionando, mas o status visual do card não é sincronizado.
+O watcher considera tarefas atribuídas ao usuário do token em todos os grupos do board configurado,
+independentemente do valor da coluna `ai_column`. Ele ignora o status configurado como `completed`.
+`ready_label` continua disponível como filtro opcional; vazio significa não filtrar por etiqueta.
 
 Quando `base_branch = "auto"`, Sunday usa `homolog` para demandas de homologação.
 Nos demais casos, ele usa `main` quando disponível.
