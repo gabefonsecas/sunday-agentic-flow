@@ -7,10 +7,10 @@ name = "sunday-agentic-flow"
 version = "1.0.0"
 description = "Deterministic, portable development orchestration across AI coding hosts."
 readme = "README.md"
-requires-python = ">=3.10"
+requires-python = ">=3.11"
 license = {text = "MIT"}
 authors = [{name = "Gabriel Fonseca"}]
-dependencies = ["tomli>=2.0.1; python_version < '3.11'"]
+dependencies = []
 
 [project.scripts]
 sunday = "sunday.cli:main"

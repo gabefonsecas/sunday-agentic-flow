@@ -4,16 +4,12 @@
 import json
 from pathlib import Path
 import sys
-
-try:
-    import tomllib
-except ModuleNotFoundError:  # Python 3.10
-    import tomli as tomllib
+import tomllib
 
 ROOT = Path(__file__).resolve().parent.parent
 sys.path.insert(0, str(ROOT))
 
-from sunday.routing import MODEL_POOLS
+from sunday.routing import MODEL_POOLS  # noqa: E402
 PHASES = {
     "discovery": "sunday-task-analyst",
     "implementation": "sunday-implementation-worker",

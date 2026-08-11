@@ -46,7 +46,16 @@ def handle_message(message: dict, client: FridayMCPClient) -> dict:
             "jsonrpc": "2.0", "id": message.get("id"),
             "result": {"content": [{"type": "text", "text": json.dumps(result, ensure_ascii=False)}]},
         }
-    response = client.request(method, params if params else None)
+    retry_safe = method in {
+        "initialize", "notifications/initialized", "tools/list",
+        "resources/list", "prompts/list",
+    } or (
+        method == "tools/call"
+        and params.get("name") in FridayMCPClient.READ_ONLY_TOOLS
+    )
+    response = client.request(
+        method, params if params else None, retry_safe=retry_safe
+    )
     if method == "tools/list":
         tools = response.setdefault("tools", [])
         if not any(tool.get("name") == ASSIGN_TOOL["name"] for tool in tools):
