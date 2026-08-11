@@ -37,7 +37,7 @@ def doctor(network: bool = False) -> dict:
     if not hosts["antigravity"]["available"] and hosts["gemini"]["available"]:
         hosts["antigravity"] = {**hosts["gemini"], "fallback": "gemini"}
     result = {
-        "sunday": {"version": __version__, "python": sys.version.split()[0], "supported_python": sys.version_info >= (3, 11)},
+        "sunday": {"version": __version__, "python": sys.version.split()[0], "supported_python": sys.version_info >= (3, 10)},
         "paths": {
             "config": str(config_path()), "config_exists": config_path().is_file(),
             "environment": str(selected_env), "environment_loaded": str(loaded) if loaded else None,

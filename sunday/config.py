@@ -3,7 +3,11 @@
 from dataclasses import dataclass, field, replace
 import os
 from pathlib import Path
-import tomllib
+
+try:
+    import tomllib
+except ModuleNotFoundError:  # Python 3.10
+    import tomli as tomllib
 
 from .paths import config_dir
 from .security import load_env
