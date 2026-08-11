@@ -7,13 +7,15 @@ description: Automatically route development work among remote models and subage
 
 Read `references/strategy-matrix.md` before selecting a mode.
 
-1. Inspect the route ledger using `sunday report <run-id>`.
-2. Classify failures by phase, risk, and model.
-3. Verify requested and observed model evidence.
-4. Compare retry rate, confidence, duration, and validation.
-5. Recommend the cheapest tier preserving acceptance quality.
-6. Keep recommendations advisory.
-7. Never alter routing policy automatically.
+1. Inspect transitions using `sunday routes <run-id> --format markdown`.
+2. Use Mermaid when visual flow helps.
+3. Inspect full evidence using `sunday report <run-id>`.
+4. Classify failures by phase, risk, and model.
+5. Verify requested and observed model evidence.
+6. Compare retry rate, confidence, duration, and validation.
+7. Recommend the cheapest tier preserving acceptance quality.
+8. Keep recommendations advisory.
+9. Never alter routing policy automatically.
 
 Never claim weight interpolation across unrelated model architectures.
 Use semantic interpolation at response and decision layers only.

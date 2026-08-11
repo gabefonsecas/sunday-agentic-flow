@@ -73,12 +73,14 @@ class SundayEngine:
         tasks: TaskManagerAdapter | None = None,
         git: GitProviderAdapter | None = None,
         hosts: HostRegistry | None = None,
+        progress: Callable[[str, dict], None] | None = None,
     ):
         self.settings = settings
         self.store = store or RunStore()
         self.tasks = tasks
         self.git = git or GitHubAdapter()
         self.hosts = hosts or HostRegistry()
+        self.progress = progress
 
     def start(self, task_ref: str, project: ProjectConfig, host_name: str = "auto") -> Run:
         previous = self.store.latest_for_task(task_ref)
@@ -260,11 +262,29 @@ class SundayEngine:
             adapters.extend(self.hosts.alternatives(run.host))
         last_error = "phase did not execute"
         attempts = max(1, self.settings.max_phase_attempts)
+        risk_text = f"{run.metadata.get('title', '')}\n{run.metadata.get('description', '')}"
+        risk = "high" if HIGH_RISK.search(risk_text) else "normal"
         for attempt in range(1, attempts + 1):
             adapter = adapters[min(attempt - 1, len(adapters) - 1)]
-            route = ModelRouter(adapter.name).route(phase, attempt)
-            self.store.event(run.id, "route.started", phase, asdict(route))
-            result = adapter.execute_agent(route, prompt, project.repository, read_only)
+            route = ModelRouter(adapter.name).route(phase, attempt, risk)
+            started_payload = asdict(route)
+            self.store.event(run.id, "route.started", phase, started_payload)
+            if self.progress:
+                self.progress("route.started", started_payload)
+            try:
+                result = adapter.execute_agent(route, prompt, project.repository, read_only)
+            except Exception as exc:
+                payload = {
+                    **asdict(route), "success": False, "accepted": False,
+                    "observed_model": None, "model_verified": False,
+                    "duration_seconds": 0, "confidence": None,
+                    "evidence": {"exception": type(exc).__name__}, "error": str(exc),
+                }
+                self.store.event(run.id, "route.completed", phase, payload)
+                if self.progress:
+                    self.progress("route.completed", payload)
+                last_error = str(exc)
+                continue
             signal = sunday_result(result.output)
             confidence = signal.get("confidence", result.confidence)
             verified = adapter.verify_model_used(route, result)
@@ -280,6 +300,8 @@ class SundayEngine:
                 "evidence": result.evidence or {}, "signal": signal,
             }
             self.store.event(run.id, "route.completed", phase, payload)
+            if self.progress:
+                self.progress("route.completed", payload)
             if accepted:
                 return result
             last_error = str(signal.get("summary") or result.output[-1000:])

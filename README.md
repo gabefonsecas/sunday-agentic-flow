@@ -73,17 +73,49 @@ O banco SQLite fica fora dos projetos:
 
 No Windows nativo ele usa `%LOCALAPPDATA%\sunday`.
 
-## Roteamento de modelos
+## Roteamento e transições visuais
 
 Sunday inicia uma execução headless separada para cada fase.
 O modelo é passado explicitamente ao CLI do host.
 
 | Fase | Codex | Claude | Gemini | Antigravity |
 | --- | --- | --- | --- | --- |
-| Descoberta | `gpt-5.6-terra` | `haiku` | `flash` | `flash` |
-| Implementação | `gpt-5.6-sol` | `sonnet` | `pro` | `pro` |
-| Verificação | `gpt-5.6-terra` | `sonnet` | `pro` | `pro` |
-| Review | `gpt-5.6-sol` | `opus` | `pro` | `pro` |
+| Descoberta | Luna → Terra → Sol | Haiku → Sonnet → Opus | Flash-Lite → Flash → Auto | Flash-Lite → Flash → Auto |
+| Implementação | Terra → Sol high → Sol xhigh | Haiku → Sonnet → Opus | Flash → Auto → Pro | Flash → Auto → Pro |
+| Verificação | Luna → Terra → Sol | Haiku → Sonnet → Opus | Flash → Auto → Pro | Flash → Auto → Pro |
+| Review | Terra → Sol xhigh → Sol max | Haiku → Sonnet → Opus | Auto → Pro → Gemini 3 Pro | Auto → Pro → Gemini 3 Pro |
+
+O primeiro modelo é o custo inicial da fase.
+Falhas ou baixa confiança avançam pelo pool.
+Risco alto começa num nível mais forte.
+
+Durante a execução, Sunday imprime cada troca:
+
+```text
+[>>] Discovery: gpt-5.6-luna  pool=1/3  reason=phase default
+[!!] Discovery: gpt-5.6-luna  duration=8.2s  accepted=False
+[>>] Discovery: gpt-5.6-terra  pool=2/3  reason=retry escalation
+[OK] Discovery: gpt-5.6-terra  duration=14.1s  accepted=True
+```
+
+Consulte o painel da execução mais recente:
+
+```bash
+sunday routes
+```
+
+Consulte uma execução específica:
+
+```bash
+sunday routes RUN_ID
+sunday status RUN_ID --visual
+sunday routes RUN_ID --format markdown
+sunday routes RUN_ID --format mermaid
+sunday routes RUN_ID --format json
+```
+
+O formato Mermaid permite renderização em clientes compatíveis.
+No Codex, peça: `Sunday, mostre as transições dos modelos`.
 
 Cada execução registra:
 
@@ -389,7 +421,7 @@ cross_provider = false
 strict_model_verification = true
 watcher_interval = 60
 minimum_confidence = 0.70
-max_phase_attempts = 2
+max_phase_attempts = 3
 
 [projects.mustafar]
 repository = "~/src/smb-products"
@@ -670,6 +702,12 @@ sunday report RUN_ID --output ~/relatorios/sunday.md
 O relatório contém timeline e route ledger.
 Também inclui recomendações de roteamento.
 Sunday nunca altera a política automaticamente.
+
+Para enxergar somente modelos e escalonamentos:
+
+```bash
+sunday routes RUN_ID
+```
 
 # Modo entre fornecedores
 

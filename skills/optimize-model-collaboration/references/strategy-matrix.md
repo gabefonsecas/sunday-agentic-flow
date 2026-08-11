@@ -47,12 +47,19 @@ Record task class, chosen tier, validation outcome, and corrected errors.
 Prefer the cheapest tier preserving acceptance quality.
 Never use self-reported confidence as the only routing signal.
 
-## Host mappings
+## Host pools
 
-- Codex: discovery uses `gpt-5.6-terra`; implementation uses `gpt-5.6-sol`; verification returns to `gpt-5.6-terra`; deep review uses `gpt-5.6-sol` with `xhigh` effort.
-- Claude Code: fast uses `haiku`; balanced uses `sonnet`; deep uses `opus`.
-- Gemini CLI: fast uses Gemini Flash; balanced and deep use Gemini Pro.
-- Antigravity: fast uses `flash`; balanced and deep use `pro`.
+- Codex discovery and verification progress through Luna, Terra, and Sol.
+- Codex implementation progresses through Terra and two Sol efforts.
+- Codex review progresses through Terra, Sol xhigh, and Sol max.
+- Claude Code progresses through Haiku, Sonnet, and Opus.
+- Gemini discovery progresses through Flash-Lite, Flash, and Auto.
+- Gemini implementation and verification progress through Flash, Auto, and Pro.
+- Gemini review progresses through Auto, Pro, and Gemini 3 Pro.
+- Antigravity uses the Gemini pool through its native command or Gemini fallback.
+
+The runtime owns exact selection and retries.
+Do not replace these pools inside a host prompt.
 
 Use `sunday_task_analyst` on Codex for discovery.
 Use `sunday_implementation_worker` for bounded coding.
@@ -62,4 +69,5 @@ Use `sunday_branch_reviewer` before delivery completion.
 Other hosts expose the same names with hyphens.
 Sunday invokes them through its headless runtime.
 
-If a configured model is unavailable, inherit the session model.
+If a candidate is unavailable, record failure and escalate.
+Never silently inherit an unverified session model.

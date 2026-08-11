@@ -45,3 +45,10 @@ Use `not reported by host` when unavailable.
 
 Sunday rejects unavailable hosts and unverified mandatory routes.
 Cross-provider fallback requires explicit configuration.
+
+## Visual route
+
+Use `sunday routes <run-id>` for terminal output.
+Use Markdown when replying inside a coding host.
+Use Mermaid when the client supports rendered diagrams.
+Show both attempted transitions and the available pool.

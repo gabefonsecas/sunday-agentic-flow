@@ -18,10 +18,12 @@ Do not reproduce its state machine manually.
 8. If the user supplied an existing Friday item ID or URL, invoke `sunday run <item>` internally.
 9. Run `sunday doctor` internally when environment health is unknown.
 10. Report Friday item IDs, the returned run ID, and current state.
-11. Use `sunday status <run-id>` for status requests.
-12. Use `sunday resume <run-id>` after recoverable failures.
-13. Require explicit approval before passing `--approve`.
-14. Require reconciliation before `--retry-uncertain`.
+11. Use `sunday status <run-id>` for structured status requests.
+12. Use `sunday routes <run-id> --format markdown` for model status requests.
+13. Use Mermaid when the host can render diagrams.
+14. Use `sunday resume <run-id>` after recoverable failures.
+15. Require explicit approval before passing `--approve`.
+16. Require reconciliation before `--retry-uncertain`.
 
 Never make the user translate a natural-language request into Sunday CLI syntax.
 

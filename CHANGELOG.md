@@ -2,6 +2,9 @@
 
 ## Unreleased
 
+- Added live model-transition output and terminal, Markdown, Mermaid, and JSON route dashboards.
+- Expanded Codex, Gemini, Antigravity, and Claude phase pools to three escalation candidates.
+- Added risk-aware routing and retry handling for host execution exceptions.
 - Added AI-assisted first-run Friday configuration using only the token and repository context.
 - Added strict live-catalog validation and atomic `config.toml` persistence.
 - Scoped the watcher to all non-completed tasks assigned to the token user on the selected board.
