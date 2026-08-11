@@ -167,7 +167,10 @@ def main(argv: list[str] | None = None) -> None:
         adapter = FridayAdapter()
         engine.tasks = adapter
         while True:
-            for task in adapter.list_ready_tasks(project.ready_label):
+            for task in adapter.list_ready_tasks(
+                project.ready_label, int(project.board_id),
+                str(project.states.get("completed", "")),
+            ):
                 reference = str(task["id"])
                 previous = store.latest_for_task(reference)
                 if previous and previous.state in {"completed", "paused"}:

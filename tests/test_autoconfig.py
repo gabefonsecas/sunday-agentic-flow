@@ -19,6 +19,7 @@ class CatalogClient:
         if name == "list_columns":
             return [
                 {"id": 200, "name": "Responsável", "type": "people"},
+                {"id": 298, "name": "IA", "type": "checkbox"},
                 {
                     "id": 201, "name": "Status", "type": "status",
                     "settings": {"options": [
@@ -50,6 +51,7 @@ class ConfigHost:
         config = {
             "workspace_id": 37, "board_id": 46, "intake_group_id": 90,
             "people_column": "200", "status_column": "201", "pr_column": "",
+            "ai_column": "298",
             "states": states,
         }
         output = "SUNDAY_CONFIG: " + json.dumps(config)
@@ -82,6 +84,7 @@ class AutoConfigurationTests(unittest.TestCase):
             loaded = load_settings(destination).projects["smb-products"]
         self.assertEqual(project.board_id, 46)
         self.assertEqual(loaded.status_column, "201")
+        self.assertEqual(loaded.ai_column, "298")
         self.assertEqual(loaded.states["verification"], "qa")
         self.assertFalse(needs_configuration(loaded))
 

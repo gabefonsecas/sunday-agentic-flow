@@ -4,6 +4,8 @@
 
 - Added AI-assisted first-run Friday configuration using only the token and repository context.
 - Added strict live-catalog validation and atomic `config.toml` persistence.
+- Scoped the watcher to all non-completed tasks assigned to the token user on the selected board.
+- Changed the IA checkbox from an execution trigger into an audit marker set by Sunday.
 - Added Friday status-column transitions while preserving legacy group-based workflows.
 - Added the real Squad Mustafar status mapping to the configuration tutorial.
 - Added Python 3.10 and Ubuntu 22.04/WSL compatibility through `tomli`.
