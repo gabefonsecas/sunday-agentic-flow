@@ -3,7 +3,7 @@ name: sunday-branch-reviewer
 description: Use before every pull request completion for deep correctness, security, regression, and missing-test review.
 mainAgent: false
 subagent: true
-model: pro
+model: gemini-3-flash-preview
 commandExecutionPolicy: sandbox
 ---
 

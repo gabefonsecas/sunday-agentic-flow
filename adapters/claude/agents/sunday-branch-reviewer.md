@@ -1,8 +1,8 @@
 ---
 name: sunday-branch-reviewer
 description: Use before every pull request completion for deep correctness, security, regression, and missing-test review.
-model: opus
-effort: xhigh
+model: claude-sonnet-5
+effort: high
 disallowedTools: Write, Edit
 ---
 

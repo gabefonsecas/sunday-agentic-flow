@@ -49,14 +49,19 @@ Never use self-reported confidence as the only routing signal.
 
 ## Host pools
 
-- Codex discovery and verification progress through Luna, Terra, and Sol.
-- Codex implementation progresses through Terra and two Sol efforts.
-- Codex review progresses through Terra, Sol xhigh, and Sol max.
-- Claude Code progresses through Haiku, Sonnet, and Opus.
-- Gemini discovery progresses through Flash-Lite, Flash, and Auto.
-- Gemini implementation and verification progress through Flash, Auto, and Pro.
-- Gemini review progresses through Auto, Pro, and Gemini 3 Pro.
+- Codex progresses through GPT-5.4 mini, GPT-5.4, GPT-5.6 Terra, GPT-5.5, and GPT-5.6 Sol.
+- Claude progresses through Haiku 4.5, Sonnet 4.6, Sonnet 5, and Opus 5.
+- Gemini progresses through Flash-Lite, Flash, Gemini 3 Flash, Auto, and Pro.
 - Antigravity uses the Gemini pool through its native command or Gemini fallback.
+
+Classify simple documentation and text work as `simple`.
+Classify ordinary feature and defect work as `normal`.
+Classify architecture, security, migration, database, and concurrency work as `complex`.
+Start high-risk work at the advanced tier.
+Escalate one candidate after every rejected attempt.
+
+Friday, Git, and GitHub effects are deterministic adapters.
+Never allocate model inference for those effects.
 
 The runtime owns exact selection and retries.
 Do not replace these pools inside a host prompt.

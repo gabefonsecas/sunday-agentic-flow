@@ -1,6 +1,6 @@
 name = "sunday_implementation_worker"
 description = "Use for bounded implementation and focused tests after requirements, repository rules, and story boundaries are established."
-model = "gpt-5.6-sol"
+model = "gpt-5.6-terra"
 model_reasoning_effort = "high"
 sandbox_mode = "workspace-write"
 developer_instructions = """

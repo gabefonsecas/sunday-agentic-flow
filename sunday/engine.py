@@ -9,7 +9,7 @@ from sunday.adapters.base import ExecutionResult, GitProviderAdapter, HostAdapte
 from sunday.adapters.github import GitHubAdapter, branch_slug
 from sunday.adapters.hosts import HostRegistry
 from sunday.config import ProjectConfig, Settings
-from sunday.routing import ModelRouter
+from sunday.routing import ModelRouter, classify_complexity
 from sunday.state import Run, RunStore
 
 HIGH_RISK = re.compile(
@@ -264,9 +264,10 @@ class SundayEngine:
         attempts = max(1, self.settings.max_phase_attempts)
         risk_text = f"{run.metadata.get('title', '')}\n{run.metadata.get('description', '')}"
         risk = "high" if HIGH_RISK.search(risk_text) else "normal"
+        complexity = classify_complexity(risk_text)
         for attempt in range(1, attempts + 1):
             adapter = adapters[min(attempt - 1, len(adapters) - 1)]
-            route = ModelRouter(adapter.name).route(phase, attempt, risk)
+            route = ModelRouter(adapter.name).route(phase, attempt, risk, complexity)
             started_payload = asdict(route)
             self.store.event(run.id, "route.started", phase, started_payload)
             if self.progress:
@@ -317,7 +318,10 @@ class SundayEngine:
         result = action()
         payload = result if isinstance(result, dict) else {"result": result}
         self.store.save_effect(run.id, key, "completed", payload)
-        self.store.event(run.id, "effect.completed", run.state, {"key": key, "result": payload})
+        event = {"effect": key, "result": payload, "execution": "deterministic", "model": None}
+        self.store.event(run.id, "effect.completed", run.state, event)
+        if self.progress:
+            self.progress("effect.completed", event)
         return payload
 
     def _sync_friday(self, run: Run, project: ProjectConfig, state: str) -> None:

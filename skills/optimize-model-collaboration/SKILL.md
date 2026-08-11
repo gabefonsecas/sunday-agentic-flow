@@ -23,3 +23,4 @@ Use only authenticated hosts and configured providers.
 Do not require local inference servers or separate model endpoints.
 Never bypass Sunday for Friday, Git, or pull requests.
 Never claim routing without a `route.completed` event.
+Never invoke a model for deterministic Friday, Git, or GitHub effects.
