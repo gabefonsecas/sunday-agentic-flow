@@ -2,6 +2,13 @@
 
 ## Unreleased
 
+## 1.0.1
+
+- Moved the WSL 2 release gate to an ephemeral GitHub-hosted Windows runner.
+- Added release tag/version validation before artifact publication.
+
+## 1.0.0
+
 - Added per-run Git worktrees and scoped commits.
 - Added expiring task leases, heartbeats, recovery, and SQLite backups.
 - Added automatic Friday and GitHub effect reconciliation.
@@ -27,8 +34,6 @@
 - Added current Git repository inference and a reusable default Friday mapping.
 - Added model-assisted task detailing, token-based assignment, and create-then-execute flow.
 - Added durable, marker-based idempotency and partial-failure reconciliation for card creation.
-
-## 1.0.0
 
 - Renamed the product and all public calls to Sunday.
 - Added a durable SQLite workflow state machine.

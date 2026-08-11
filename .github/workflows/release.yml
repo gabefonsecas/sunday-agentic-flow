@@ -11,14 +11,13 @@ permissions:
 
 jobs:
   wsl-release-gate:
-    runs-on: [self-hosted, Windows, X64, wsl-2]
+    runs-on: windows-2025
+    timeout-minutes: 20
     steps:
       - uses: actions/checkout@v7
       - name: Run the release suite inside WSL 2
         shell: pwsh
-        run: |
-          $linuxPath = (wsl wslpath -a "$env:GITHUB_WORKSPACE").Trim()
-          wsl bash -lc "cd '$linuxPath' && python3 -m unittest discover -s tests -v"
+        run: ./scripts/test_wsl.ps1
 
   release:
     needs: wsl-release-gate
@@ -28,13 +27,18 @@ jobs:
       - uses: actions/setup-python@v7
         with:
           python-version: "3.11"
+      - name: Validate tag matches the packaged version
+        run: |
+          version=$(tr -d '[:space:]' < VERSION)
+          test "v${version}" = "$GITHUB_REF_NAME"
       - run: python -m unittest discover -s tests -v
       - run: python -m compileall -q sunday scripts tests
       - run: python scripts/sync_versions.py
       - name: Build portable archive
         run: |
-          git archive --format=zip --prefix=sunday-agentic-flow/ --output=sunday-agentic-flow-${GITHUB_REF_NAME}.zip HEAD
-          sha256sum sunday-agentic-flow-${GITHUB_REF_NAME}.zip > sunday-agentic-flow-${GITHUB_REF_NAME}.zip.sha256
+          archive="sunday-agentic-flow-${GITHUB_REF_NAME}.zip"
+          git archive --format=zip --prefix=sunday-agentic-flow/ --output="$archive" HEAD
+          sha256sum "$archive" > "${archive}.sha256"
       - uses: actions/attest-build-provenance@v4
         with:
           subject-path: sunday-agentic-flow-${{ github.ref_name }}.zip
