@@ -2,6 +2,10 @@
 
 ## Unreleased
 
+- Added AI-assisted first-run Friday configuration using only the token and repository context.
+- Added strict live-catalog validation and atomic `config.toml` persistence.
+- Added Friday status-column transitions while preserving legacy group-based workflows.
+- Added the real Squad Mustafar status mapping to the configuration tutorial.
 - Added Python 3.10 and Ubuntu 22.04/WSL compatibility through `tomli`.
 - Replaced the missing `tomllib` traceback with an actionable installer diagnostic.
 - Added conversational Friday task creation through Sunday skills.

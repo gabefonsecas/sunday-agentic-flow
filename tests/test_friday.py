@@ -20,7 +20,10 @@ class FakeClient:
         if name == "list_workspace_members":
             return [{"id": self.user_id, "email": f"u{self.user_id}@test"}, {"id": 9, "email": "fallback@test"}]
         if name == "list_columns":
-            return [{"id": 11, "name": "Owner", "type": "people"}]
+            return [
+                {"id": 11, "name": "Owner", "type": "people"},
+                {"id": 201, "name": "Status", "type": "status"},
+            ]
         if name == "update_cell_value":
             return {"success": True}
         if name == "list_groups":
@@ -71,3 +74,9 @@ class FridayAdapterTests(unittest.TestCase):
         self.assertEqual(result["member_id"], 73)
         update = [call for call in client.calls if call[0] == "update_cell_value"][-1]
         self.assertEqual(update[1]["value"], "73")
+
+    def test_status_update_resolves_column_by_id(self):
+        client = FakeClient()
+        FridayAdapter(client).set_status(42, 46, "201", "working")
+        update = [call for call in client.calls if call[0] == "update_cell_value"][-1]
+        self.assertEqual(update[1], {"item_id": 42, "column_id": 201, "value": "working"})

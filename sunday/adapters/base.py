@@ -60,6 +60,9 @@ class TaskManagerAdapter(ABC):
     def transition(self, item_id: int, group_id: int) -> dict: ...
 
     @abstractmethod
+    def set_status(self, item_id: int, board_id: int, column: str, value: str) -> dict: ...
+
+    @abstractmethod
     def comment(self, item_id: int, text: str) -> dict: ...
 
     @abstractmethod
