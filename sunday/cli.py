@@ -10,10 +10,11 @@ import time
 from sunday.config import config_path, load_settings
 from sunday.diagnostics import doctor
 from sunday.engine import SundayEngine
-from sunday.installation import install, uninstall, update
+from sunday.installation import check_update, install, rollback, uninstall, update
 from sunday.reporting import write_report
 from sunday.state import RunStore
 from sunday.visual import live_route_line, render_routes
+from sunday.worktrees import cleanup_worktrees
 
 
 def _json(value: object) -> None:
@@ -25,10 +26,20 @@ def parser() -> argparse.ArgumentParser:
     root.add_argument("--config", type=Path, help="Configuration TOML path")
     commands = root.add_subparsers(dest="command", required=True)
     commands.add_parser("install", help="Install Sunday globally")
-    commands.add_parser("update", help="Update and reinstall Sunday")
+    upgrade = commands.add_parser("update", help="Update or roll back Sunday")
+    update_mode = upgrade.add_mutually_exclusive_group()
+    update_mode.add_argument("--check", action="store_true", help="Check releases without changing files")
+    update_mode.add_argument(
+        "--rollback", nargs="?", const="", metavar="VERSION",
+        help="Restore the previous or selected installed version",
+    )
     commands.add_parser("uninstall", help="Remove managed Sunday files")
     health = commands.add_parser("doctor", help="Validate the complete environment")
     health.add_argument("--network", action="store_true")
+    health.add_argument(
+        "--models", action="store_true",
+        help="Probe every configured model using read-only executions",
+    )
     run = commands.add_parser("run", help="Execute one Friday task")
     run.add_argument("task")
     run.add_argument("--project")
@@ -68,6 +79,9 @@ def parser() -> argparse.ArgumentParser:
     report.add_argument("run_id")
     report.add_argument("--format", choices=("json", "markdown"), default="markdown")
     report.add_argument("--output", type=Path)
+    cleanup = commands.add_parser("cleanup", help="Remove eligible completed worktrees")
+    cleanup.add_argument("--run-id")
+    cleanup.add_argument("--older-than", type=int, metavar="DAYS")
     friday = commands.add_parser("friday", help="Inspect Friday configuration data")
     friday.add_argument("--workspace", type=int)
     friday.add_argument("--board", type=int)
@@ -95,13 +109,18 @@ def main(argv: list[str] | None = None) -> None:
         _json(install())
         return
     if args.command == "update":
-        _json(update())
+        if args.check:
+            _json(check_update())
+        elif args.rollback is not None:
+            _json(rollback(args.rollback or None))
+        else:
+            _json(update())
         return
     if args.command == "uninstall":
         _json(uninstall())
         return
     if args.command == "doctor":
-        result = doctor(args.network)
+        result = doctor(args.network, args.models)
         _json(result)
         raise SystemExit(0 if result["healthy"] else 1)
     if args.command == "friday":
@@ -118,7 +137,10 @@ def main(argv: list[str] | None = None) -> None:
         _json(result)
         return
     settings = load_settings(args.config)
-    store = RunStore()
+    store = RunStore(
+        lease_seconds=settings.lease_ttl_seconds,
+        heartbeat_seconds=settings.lease_heartbeat_seconds,
+    )
     engine = SundayEngine(settings, store=store, progress=_progress)
     if args.command == "routes":
         run_id = args.run_id
@@ -154,6 +176,12 @@ def main(argv: list[str] | None = None) -> None:
             suffix = "json" if args.format == "json" else "md"
             destination = Path.cwd() / f"sunday-report-{args.run_id}.{suffix}"
         _json({"report": str(write_report(store, args.run_id, destination, args.format))})
+        return
+    if args.command == "cleanup":
+        older_than = args.older_than
+        if older_than is None and not args.run_id:
+            older_than = settings.completed_worktree_retention_days
+        _json(cleanup_worktrees(store, args.run_id, older_than))
         return
     if args.command == "resume":
         run = store.get(args.run_id)
@@ -204,7 +232,7 @@ def main(argv: list[str] | None = None) -> None:
             ):
                 reference = str(task["id"])
                 previous = store.latest_for_task(reference)
-                if previous and previous.state in {"completed", "paused"}:
+                if previous and previous.state in {"completed", "paused", "failed"}:
                     continue
                 try:
                     _json(_run_dict(engine.start(reference, project, args.host)))

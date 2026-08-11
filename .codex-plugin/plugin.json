@@ -1,6 +1,6 @@
 {
   "name": "sunday-agentic-flow",
-  "version": "1.0.0+codex.20260811185627",
+  "version": "1.0.0+codex.20260811200637",
   "description": "Sunday deterministic development orchestration across AI coding hosts.",
   "author": {
     "name": "Gabriel Fonseca",
@@ -31,10 +31,7 @@
     "defaultPrompt": [
       "Sunday, crie uma tarefa no Friday para este projeto.",
       "Sunday, crie esta tarefa no Friday e j\u00e1 comece a executar.",
-      "Execute esta tarefa Friday com Sunday.",
-      "Revise esta branch usando Sunday.",
-      "Mostre o estado desta execu\u00e7\u00e3o Sunday.",
-      "Sunday, mostre visualmente as transi\u00e7\u00f5es entre modelos."
+      "Execute ou revise esta tarefa com Sunday e mostre seu estado."
     ]
   },
   "mcpServers": {

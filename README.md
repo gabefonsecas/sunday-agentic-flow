@@ -156,7 +156,7 @@ Este tutorial parte de uma instalação vazia.
 Abra o PowerShell como Administrador.
 
 ```powershell
-wsl --install -d Ubuntu
+wsl --install -d Ubuntu-24.04
 wsl --update
 wsl --set-default-version 2
 ```
@@ -189,16 +189,8 @@ Confirme o Python:
 python3 --version
 ```
 
-Sunday exige Python 3.10 ou superior.
-Ubuntu 22.04 usa Python 3.10 e precisa do backport TOML:
-
-```bash
-if ! python3 -c 'import tomllib' 2>/dev/null; then
-  sudo apt install -y python3-tomli
-fi
-```
-
-Ubuntu 24.04 e Python 3.11+ já incluem `tomllib`.
+Sunday exige Python 3.11 ou superior.
+Ubuntu 24.04 já fornece uma versão compatível.
 
 Configure sua identidade Git:
 
@@ -283,7 +275,7 @@ Os agentes instalados continuam otimizados para Antigravity.
 Quando a instalação usa outro comando, configure um template:
 
 ```dotenv
-SUNDAY_ANTIGRAVITY_COMMAND=agy --model {model} --prompt -
+SUNDAY_ANTIGRAVITY_COMMAND=agy --model {model} -p
 ```
 
 Os agentes específicos ficam em `adapters/antigravity`.
@@ -378,6 +370,8 @@ O instalador cria:
 
 O instalador usa backup e rollback automático.
 Ele nunca instala arquivos dentro dos projetos.
+O código ativo fica numa release imutável em `~/.local/share/sunday/releases`.
+O clone usado na instalação pode ser removido depois.
 
 ## 8. Configuração automática do Friday
 
@@ -435,6 +429,9 @@ strict_model_verification = true
 watcher_interval = 60
 minimum_confidence = 0.70
 max_phase_attempts = 3
+lease_ttl_seconds = 300
+lease_heartbeat_seconds = 60
+completed_worktree_retention_days = 7
 
 [projects.mustafar]
 repository = "~/src/smb-products"
@@ -680,8 +677,9 @@ Uma operação de alto risco exige aprovação explícita:
 sunday resume RUN_ID --approve
 ```
 
-Use `--retry-uncertain` somente após verificar o Friday ou GitHub.
-Esse sinal permite repetir uma operação cuja resposta foi perdida.
+Use `--retry-uncertain` para solicitar reconciliação imediata.
+Sunday preserva o efeito iniciado e consulta o sistema remoto.
+Ele repete somente quando o probe confirma sua ausência.
 
 ```bash
 sunday resume RUN_ID --retry-uncertain
@@ -780,20 +778,41 @@ URLs autenticadas também são redigidas.
 ```bash
 sunday doctor
 sunday doctor --network
+sunday doctor --models
 ```
 
 O modo `--network` também testa o Friday.
+O modo `--models` executa probes mínimos e somente leitura.
+Ele confirma o modelo observado por cada host.
 
 ## Atualização
 
 ```bash
 sunday update
+sunday update --check
+sunday update --rollback
+sunday update --rollback 1.0.0
 ```
 
-Esse comando executa atualização Git com fast-forward.
-Depois reinstala os arquivos gerenciados.
-Falhas de instalação restauram os arquivos gerenciados anteriores.
-O checkout Git permanece na revisão baixada.
+O update consulta a release oficial no GitHub.
+Ele baixa o ZIP e valida checksum e proveniência.
+A nova versão passa por smoke test antes da ativação.
+Falhas mantêm a versão anterior ativa.
+O comando não depende do clone usado na instalação.
+
+## Worktrees e limpeza
+
+Cada execução trabalha num worktree global exclusivo.
+Mudanças existentes no checkout original ficam intocadas.
+Execuções pausadas ou falhas preservam seus arquivos.
+
+```bash
+sunday cleanup
+sunday cleanup --older-than 14
+sunday cleanup --run-id RUN_ID
+```
+
+Sunday remove somente worktrees registrados e limpos.
 
 ## Remoção
 
@@ -817,7 +836,7 @@ python3 scripts/sync_versions.py
 
 A integração contínua testa:
 
-- Python 3.10, 3.11 e 3.13;
+- Python 3.11, 3.12 e 3.13;
 - Ubuntu;
 - contrato WSL;
 - Windows x64;
@@ -836,7 +855,7 @@ Releases geram ZIP portátil, checksum SHA-256 e atestado de proveniência.
 - Contas sem tarefas precisam do e-mail fallback.
 - Antigravity precisa expor um comando headless compatível.
 - Integrações GitLab, Azure DevOps, Jira e Linear ainda não existem.
-- Uma operação interrompida exige reconciliação antes de repetir.
+- Efeitos sem evidência remota permanecem pausados.
 
 # Licença
 

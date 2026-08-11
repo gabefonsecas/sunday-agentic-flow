@@ -2,17 +2,32 @@
 
 import json
 import os
+import random
 import threading
+import time
+import urllib.error
 import urllib.parse
 import urllib.request
 from itertools import count
 
 from sunday.adapters.base import TaskManagerAdapter
+from sunday.errors import (
+    AuthenticationError, PermanentIntegrationError, ReconciliationError,
+    TransientIntegrationError,
+)
 from sunday.security import load_env
 
 
 class FridayMCPClient:
-    def __init__(self, url: str | None = None, timeout: float | None = None):
+    READ_ONLY_TOOLS = {
+        "get_current_user", "list_boards", "list_columns", "list_groups",
+        "list_items", "list_my_tasks", "list_tools", "list_workspace_members",
+        "list_workspaces",
+    }
+    def __init__(
+        self, url: str | None = None, timeout: float | None = None,
+        retries: int | None = None, backoff: float | None = None,
+    ):
         load_env()
         base = os.environ.get(
             "FRIDAY_MCP_BASE_URL", "https://friday.eletromidia.com.br/api/mcp_sse.php"
@@ -22,26 +37,38 @@ class FridayMCPClient:
         if not self.url and token:
             self.url = base + "?" + urllib.parse.urlencode({"api_token": token})
         self.timeout = timeout or float(os.environ.get("FRIDAY_MCP_TIMEOUT", "60"))
+        self.retries = retries if retries is not None else int(os.environ.get("FRIDAY_MCP_RETRIES", "3"))
+        self.backoff = backoff if backoff is not None else float(os.environ.get("FRIDAY_MCP_BACKOFF", "0.5"))
         self.endpoint: str | None = None
         self.error: Exception | None = None
         self.ready = threading.Event()
+        self.stopping = threading.Event()
         self.ids = count(1)
         self.thread: threading.Thread | None = None
+        self.response = None
+        self.retry_count = 0
 
     def connect(self) -> None:
         if self.thread and self.thread.is_alive():
             return
         if not self.url:
-            raise RuntimeError("Configure FRIDAY_MCP_API_TOKEN in ~/.config/sunday/.env")
+            raise AuthenticationError("Configure FRIDAY_MCP_API_TOKEN in ~/.config/sunday/.env")
+        self.error = None
+        self.endpoint = None
+        self.ready.clear()
+        self.stopping.clear()
         self.thread = threading.Thread(target=self._read_sse, daemon=True)
         self.thread.start()
 
     def _read_sse(self) -> None:
         try:
             request = urllib.request.Request(self.url, headers={"Accept": "text/event-stream"})
-            with urllib.request.urlopen(request, timeout=None) as response:
+            with urllib.request.urlopen(request, timeout=self.timeout) as response:
+                self.response = response
                 event = ""
                 for raw_line in response:
+                    if self.stopping.is_set():
+                        break
                     line = raw_line.decode("utf-8").strip()
                     if line.startswith("event:"):
                         event = line[6:].strip()
@@ -49,15 +76,58 @@ class FridayMCPClient:
                         self.endpoint = urllib.parse.urljoin(self.url, line[5:].strip())
                         self.ready.set()
         except Exception as exc:
-            self.error = exc
+            if not self.stopping.is_set():
+                self.error = exc
             self.ready.set()
+        finally:
+            self.response = None
 
-    def request(self, method: str, params: dict | None = None) -> dict:
+    def close(self) -> None:
+        self.stopping.set()
+        response = self.response
+        if response is not None:
+            try:
+                response.close()
+            except Exception:
+                pass
+        thread = self.thread
+        if thread and thread.is_alive():
+            thread.join(timeout=min(self.timeout, 1.0))
+        self.thread = None
+
+    def __enter__(self):
+        self.connect()
+        return self
+
+    def __exit__(self, *_exc) -> None:
+        self.close()
+
+    def _reset_connection(self) -> None:
+        self.close()
+        self.endpoint = None
+        self.error = None
+        self.ready.clear()
+
+    @staticmethod
+    def _classified(exc: Exception) -> Exception:
+        if isinstance(exc, urllib.error.HTTPError):
+            if exc.code in {401, 403}:
+                return AuthenticationError(f"Friday authentication failed with HTTP {exc.code}")
+            if exc.code == 429 or exc.code >= 500:
+                return TransientIntegrationError(f"Friday returned HTTP {exc.code}")
+            return PermanentIntegrationError(f"Friday returned HTTP {exc.code}")
+        if isinstance(exc, (TimeoutError, urllib.error.URLError, ConnectionError)):
+            return TransientIntegrationError(f"Friday transport failed: {exc}")
+        return exc
+
+    def _request_once(self, method: str, params: dict | None = None) -> dict:
         self.connect()
         if not self.ready.wait(self.timeout):
-            raise TimeoutError("Friday SSE endpoint discovery timed out")
+            raise TransientIntegrationError("Friday SSE endpoint discovery timed out")
         if self.error:
-            raise RuntimeError(f"Friday SSE connection failed: {self.error}")
+            raise self._classified(self.error)
+        if not self.endpoint:
+            raise TransientIntegrationError("Friday SSE endpoint was not announced")
         message = {
             "jsonrpc": "2.0",
             "id": f"sunday-{next(self.ids)}",
@@ -77,12 +147,42 @@ class FridayMCPClient:
             return {}
         payload = json.loads(body)
         if "error" in payload:
-            raise RuntimeError(payload["error"].get("message", "Friday MCP request failed"))
+            error = payload["error"]
+            code = int(error.get("code", 0)) if str(error.get("code", "")).lstrip("-").isdigit() else 0
+            message = error.get("message", "Friday MCP request failed")
+            if code in {-32001, -32002, 401, 403}:
+                raise AuthenticationError(message)
+            if code in {-32000, -32098, -32099, 429, 500, 502, 503, 504}:
+                raise TransientIntegrationError(message)
+            raise PermanentIntegrationError(message)
         return payload.get("result", {})
+
+    def request(
+        self, method: str, params: dict | None = None, *, retry_safe: bool = False,
+    ) -> dict:
+        last: Exception | None = None
+        for attempt in range(self.retries + 1):
+            try:
+                return self._request_once(method, params)
+            except Exception as exc:
+                classified = self._classified(exc)
+                if (
+                    not isinstance(classified, TransientIntegrationError)
+                    or not retry_safe
+                    or attempt >= self.retries
+                ):
+                    raise classified from exc
+                last = classified
+                self.retry_count += 1
+                self._reset_connection()
+                delay = self.backoff * (2 ** attempt)
+                time.sleep(delay + random.uniform(0, delay / 4 if delay else 0))
+        raise TransientIntegrationError(str(last or "Friday request failed"))
 
     def tool(self, name: str, arguments: dict | None = None):
         result = self.request(
-            "tools/call", {"name": name, "arguments": arguments or {}}
+            "tools/call", {"name": name, "arguments": arguments or {}},
+            retry_safe=name in self.READ_ONLY_TOOLS,
         )
         for block in result.get("content", []):
             if block.get("type") == "text":
@@ -284,3 +384,72 @@ class FridayAdapter(TaskManagerAdapter):
                 "update_cell_value", {"item_id": item_id, "column_id": candidates[0]["id"], "value": url}
             )
         return self.comment(item_id, f"Pull request: {url}")
+
+    @staticmethod
+    def _assignee_ids(task: dict) -> set[object]:
+        assignees = task.get("responsaveis")
+        if assignees is None:
+            assignees = task.get("assignees")
+        if assignees is None:
+            raise ReconciliationError("Friday task omitted assignee evidence")
+        return {
+            person.get("id") for person in assignees
+            if isinstance(person, dict) and person.get("id") is not None
+        }
+
+    @staticmethod
+    def _task_column(task: dict, column: str) -> dict:
+        columns = task.get("columns")
+        if not isinstance(columns, list):
+            raise ReconciliationError("Friday task omitted column evidence")
+        matches = [
+            item for item in columns if str(item.get("id")) == str(column)
+            or str(item.get("name", "")).casefold() == str(column).casefold()
+        ]
+        if len(matches) != 1:
+            raise ReconciliationError(f"Friday did not expose one column for {column}")
+        return matches[0]
+
+    def reconcile_claim(
+        self, task_ref: str, workspace_id: int, board_id: int,
+        people_column: str = "",
+    ) -> dict | None:
+        user = self.get_current_user(workspace_id)
+        task = self.get_task(task_ref, board_id)
+        if user.get("id") in self._assignee_ids(task):
+            return {
+                "assigned": True, "member_id": user["id"],
+                "member_email": user.get("email"), "reconciled": True,
+                "column_id": people_column or None,
+            }
+        return None
+
+    def reconcile_transition(self, task_ref: str, board_id: int, group_id: int) -> dict | None:
+        task = self.get_task(task_ref, board_id)
+        current = task.get("group_id")
+        if current is None and isinstance(task.get("group"), dict):
+            current = task["group"].get("id")
+        if current is None:
+            raise ReconciliationError("Friday task omitted group evidence")
+        return {"moved": True, "reconciled": True} if str(current) == str(group_id) else None
+
+    def reconcile_cell(
+        self, task_ref: str, board_id: int, column: str, expected: str,
+    ) -> dict | None:
+        task = self.get_task(task_ref, board_id)
+        cell = self._task_column(task, column)
+        actual = cell.get("value")
+        if actual is None:
+            actual = cell.get("formatted_value")
+        if isinstance(actual, dict):
+            actual = actual.get("id", actual.get("value", actual.get("label")))
+        if str(actual).casefold() == str(expected).casefold():
+            return {"updated": True, "reconciled": True, "column_id": column}
+        return None
+
+    def reconcile_pull_request(
+        self, task_ref: str, board_id: int, url: str, column: str,
+    ) -> dict | None:
+        if not column:
+            raise ReconciliationError("Friday comments cannot be reconciled safely")
+        return self.reconcile_cell(task_ref, board_id, column, url)
