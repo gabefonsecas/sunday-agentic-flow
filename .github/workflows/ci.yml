@@ -29,6 +29,6 @@ jobs:
     timeout-minutes: 20
     steps:
       - uses: actions/checkout@v7
-      - name: Run the cross-platform contract inside WSL 2
+      - name: Run the complete suite inside WSL 2
         shell: pwsh
-        run: ./scripts/test_wsl.ps1 -TestTarget tests.test_cross_platform
+        run: ./scripts/test_wsl.ps1
