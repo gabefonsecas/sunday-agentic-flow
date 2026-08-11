@@ -334,7 +334,30 @@ O instalador cria:
 O instalador usa backup e rollback automático.
 Ele nunca instala arquivos dentro dos projetos.
 
-## 8. Descobrir IDs do Friday
+## 8. Configuração automática do Friday
+
+Você não precisa descobrir nem preencher IDs manualmente.
+Depois de colocar o token no `.env`, abra um host dentro do repositório e faça o primeiro pedido:
+
+```text
+Sunday, crie uma tarefa no Friday para corrigir o login.
+```
+
+Na primeira execução, Sunday:
+
+1. consulta workspaces, boards, grupos, colunas e opções usando o token;
+2. envia o catálogo e o contexto do repositório ao modelo de descoberta;
+3. escolhe o board e o workflow mais adequados;
+4. valida todos os IDs escolhidos contra a resposta real do Friday;
+5. grava `~/.config/sunday/config.toml` atomicamente;
+6. continua o pedido original sem exigir um segundo comando.
+
+Se dois boards forem realmente indistinguíveis, Sunday interrompe antes de gravar e pede uma decisão.
+Ele nunca aceita IDs inventados pelo modelo.
+
+### Inspeção manual opcional
+
+Os comandos abaixo servem apenas para diagnóstico:
 
 Liste workspaces:
 
@@ -354,52 +377,45 @@ Liste grupos e colunas de um board:
 sunday friday --workspace 37 --board 46
 ```
 
-Guarde os IDs usados pelo seu fluxo.
+## 9. Arquivo gerado automaticamente
 
-## 9. Configurar um projeto
-
-Edite:
-
-```bash
-nano ~/.config/sunday/config.toml
-```
-
-Exemplo completo:
+Para o board Squad Mustafar consultado durante o desenvolvimento, Sunday produz um arquivo equivalente a:
 
 ```toml
 [runtime]
 default_host = "auto"
-default_project = "portal"
+default_project = "mustafar"
 cross_provider = false
 strict_model_verification = true
 watcher_interval = 60
 minimum_confidence = 0.70
 max_phase_attempts = 2
 
-[projects.portal]
-repository = "~/src/portal"
+[projects.mustafar]
+repository = "~/src/smb-products"
 workspace_id = 37
 board_id = 46
-intake_group_id = 101
-ready_label = "sunday-ready"
+intake_group_id = 90
 base_branch = "auto"
-pr_column = "Pull Request"
-people_column = "Responsável"
+pr_column = ""
+people_column = "200"
+status_column = "201"
+ai_column = "298"
 publish_stories = true
 
-[projects.portal.states]
-discovery = 102
-stories = 103
-publication = 104
-implementation = 105
-verification = 106
-review = 107
-pull_request = 108
-completed = 109
-failed = 110
+[projects.mustafar.states]
+discovery = "none"
+stories = "none"
+publication = "opt_1783359207831"
+implementation = "working"
+verification = "opt_1783359320107"
+review = "opt_1783359350625"
+pull_request = "opt_1783359331060"
+completed = "opt_1783359370171"
+failed = "stuck"
 ```
 
-Essa configuração é feita uma vez por mapeamento Friday. No uso normal, abra Codex, Claude, Gemini ou Antigravity dentro do repositório e converse com Sunday.
+Essa configuração é feita automaticamente uma vez por mapeamento Friday. No uso normal, abra Codex, Claude, Gemini ou Antigravity dentro do repositório e converse com Sunday.
 `default_project` define qual mapeamento de board e estados será reutilizado em novas pastas Git.
 O nome e o caminho do projeto sempre vêm da pasta atual. Se houver apenas um projeto configurado, ele já funciona como padrão mesmo sem esse campo.
 
@@ -414,7 +430,20 @@ Significado dos campos:
 - `base_branch`: `auto`, `main` ou `homolog`;
 - `pr_column`: coluna de link da pull request;
 - `people_column`: coluna de responsável;
-- `states`: mapeamento das fases para grupos Friday.
+- `status_column`: coluna de status atualizada durante a execução;
+- `ai_column`: checkbox usado somente para identificar trabalho realizado pelo Sunday;
+- `states`: mapeamento opcional das fases para opções da coluna de status.
+
+Quando `status_column` está configurada, os valores de `states` são IDs das opções de status.
+Sunday chama `update_cell_value` e mantém o card no grupo original.
+
+Em boards legados onde os próprios grupos representam o workflow, omita `status_column` e use
+IDs numéricos de grupos em `states`. Nesse modo, Sunday movimenta o card com `move_item`.
+
+Se `states` for omitido manualmente, todo o fluxo continua funcionando, mas o status visual do card não é sincronizado.
+O watcher considera tarefas atribuídas ao usuário do token em todos os grupos do board configurado,
+independentemente do valor da coluna `ai_column`. Ele ignora o status configurado como `completed`.
+`ready_label` continua disponível como filtro opcional; vazio significa não filtrar por etiqueta.
 
 Quando `base_branch = "auto"`, Sunday usa `homolog` para demandas de homologação.
 Nos demais casos, ele usa `main` quando disponível.

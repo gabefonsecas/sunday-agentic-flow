@@ -157,9 +157,25 @@ class FridayAdapter(TaskManagerAdapter):
                         return task
         raise RuntimeError(f"Friday task not found on configured board: {task_ref}")
 
-    def list_ready_tasks(self, label: str) -> list[dict]:
+    def list_ready_tasks(
+        self, label: str, board_id: int | None = None,
+        completed_status: str = "",
+    ) -> list[dict]:
         tasks = self.client.tool("list_my_tasks", {})
-        return [task for task in tasks if label.casefold() in self._labels(task)]
+        if board_id is not None:
+            tasks = [task for task in tasks if int(task.get("board_id", -1)) == board_id]
+        if completed_status:
+            tasks = [task for task in tasks if self._status_id(task) != str(completed_status)]
+        if label:
+            tasks = [task for task in tasks if label.casefold() in self._labels(task)]
+        return tasks
+
+    @staticmethod
+    def _status_id(task: dict) -> str:
+        status = task.get("status")
+        if isinstance(status, dict):
+            return str(status.get("id", ""))
+        return str(status or "")
 
     @staticmethod
     def _labels(task: dict) -> set[str]:
@@ -220,6 +236,38 @@ class FridayAdapter(TaskManagerAdapter):
 
     def transition(self, item_id: int, group_id: int) -> dict:
         return self.client.tool("move_item", {"item_id": item_id, "target_group_id": group_id})
+
+    def set_status(self, item_id: int, board_id: int, column: str, value: str) -> dict:
+        columns = self.client.tool("list_columns", {"board_id": board_id})
+        matches = [
+            item for item in columns
+            if item.get("type") == "status" and (
+                str(item.get("id")) == str(column)
+                or str(item.get("name", "")).casefold() == str(column).casefold()
+            )
+        ]
+        if len(matches) != 1:
+            raise RuntimeError("Configure one valid Friday status column")
+        return self.client.tool(
+            "update_cell_value",
+            {"item_id": item_id, "column_id": matches[0]["id"], "value": str(value)},
+        )
+
+    def mark_ai(self, item_id: int, board_id: int, column: str) -> dict:
+        columns = self.client.tool("list_columns", {"board_id": board_id})
+        matches = [
+            item for item in columns
+            if item.get("type") == "checkbox" and (
+                str(item.get("id")) == str(column)
+                or str(item.get("name", "")).casefold() == str(column).casefold()
+            )
+        ]
+        if len(matches) != 1:
+            raise RuntimeError("Configure one valid Friday AI checkbox column")
+        return self.client.tool(
+            "update_cell_value",
+            {"item_id": item_id, "column_id": matches[0]["id"], "value": "true"},
+        )
 
     def comment(self, item_id: int, text: str) -> dict:
         return self.client.tool("add_comment", {"item_id": item_id, "content": text})

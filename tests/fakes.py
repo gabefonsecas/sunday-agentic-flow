@@ -10,7 +10,8 @@ class FakeTasks:
     def authenticate(self): return {"authenticated": True}
     def get_current_user(self, workspace_id): return {"id": 7, "email": "user@example.com"}
     def get_task(self, task_ref, board_id=None): return self.task
-    def list_ready_tasks(self, label): return [self.task]
+    def list_ready_tasks(self, label, board_id=None, completed_status=""):
+        return [self.task]
     def claim_task(self, task, workspace_id, board_id, people_column=""):
         self.calls.append(("claim", task["id"]))
         return {"assigned": True, "member_id": 7, "member_email": "user@example.com", "identity_source": "token"}
@@ -24,6 +25,12 @@ class FakeTasks:
     def transition(self, item_id, group_id):
         self.calls.append(("transition", item_id, group_id))
         return {"moved": True}
+    def set_status(self, item_id, board_id, column, value):
+        self.calls.append(("status", item_id, board_id, column, value))
+        return {"updated": True}
+    def mark_ai(self, item_id, board_id, column):
+        self.calls.append(("ai", item_id, board_id, column))
+        return {"updated": True}
     def comment(self, item_id, text):
         self.calls.append(("comment", item_id, text))
         return {"commented": True}

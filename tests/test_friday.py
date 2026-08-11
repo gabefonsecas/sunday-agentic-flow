@@ -16,11 +16,17 @@ class FakeClient:
         if name == "get_current_user":
             raise RuntimeError("unknown tool")
         if name == "list_my_tasks":
+            if isinstance(self.tasks, list):
+                return self.tasks
             return [{"id": 42, "responsaveis": [{"id": self.user_id, "email": f"u{self.user_id}@test"}]}] if self.tasks else []
         if name == "list_workspace_members":
             return [{"id": self.user_id, "email": f"u{self.user_id}@test"}, {"id": 9, "email": "fallback@test"}]
         if name == "list_columns":
-            return [{"id": 11, "name": "Owner", "type": "people"}]
+            return [
+                {"id": 11, "name": "Owner", "type": "people"},
+                {"id": 201, "name": "Status", "type": "status"},
+                {"id": 298, "name": "IA", "type": "checkbox"},
+            ]
         if name == "update_cell_value":
             return {"success": True}
         if name == "list_groups":
@@ -71,3 +77,26 @@ class FridayAdapterTests(unittest.TestCase):
         self.assertEqual(result["member_id"], 73)
         update = [call for call in client.calls if call[0] == "update_cell_value"][-1]
         self.assertEqual(update[1]["value"], "73")
+
+    def test_status_update_resolves_column_by_id(self):
+        client = FakeClient()
+        FridayAdapter(client).set_status(42, 46, "201", "working")
+        update = [call for call in client.calls if call[0] == "update_cell_value"][-1]
+        self.assertEqual(update[1], {"item_id": 42, "column_id": 201, "value": "working"})
+
+    def test_watcher_uses_all_non_completed_tasks_from_selected_board(self):
+        tasks = [
+            {"id": 1, "board_id": 46, "status": {"id": "working"}},
+            {"id": 2, "board_id": 46, "status": {"id": "done"}},
+            {"id": 3, "board_id": 99, "status": {"id": "working"}},
+        ]
+        ready = FridayAdapter(FakeClient(tasks=tasks)).list_ready_tasks(
+            "", 46, "done"
+        )
+        self.assertEqual([task["id"] for task in ready], [1])
+
+    def test_ai_checkbox_is_written_as_audit_marker(self):
+        client = FakeClient()
+        FridayAdapter(client).mark_ai(42, 46, "298")
+        update = [call for call in client.calls if call[0] == "update_cell_value"][-1]
+        self.assertEqual(update[1], {"item_id": 42, "column_id": 298, "value": "true"})
