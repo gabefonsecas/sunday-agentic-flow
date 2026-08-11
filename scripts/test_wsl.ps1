@@ -11,10 +11,10 @@ if ($LASTEXITCODE -ne 0) {
     throw "Unable to install Ubuntu in the GitHub-hosted WSL environment"
 }
 
-$distributionList = (& wsl.exe --list --verbose | Out-String)
+$distributionList = ((& wsl.exe --list --verbose | Out-String) -replace "`0", "")
 Write-Host $distributionList
-if ($distributionList -notmatch "Ubuntu\s+Stopped\s+2") {
-    throw "Ubuntu is not running as a WSL 2 distribution"
+if ($distributionList -notmatch "Ubuntu\s+(?:Stopped|Running)\s+2") {
+    throw "Ubuntu was not installed as a WSL 2 distribution"
 }
 
 $linuxPath = (& wsl.exe --distribution $distribution -- wslpath -a $env:GITHUB_WORKSPACE).Trim()
