@@ -15,8 +15,14 @@ class InstallationTests(unittest.TestCase):
     def setUp(self):
         self.temp = tempfile.TemporaryDirectory()
         self.home = Path(self.temp.name)
+        self.install_root = self.home / ".local" / "share" / "sunday"
         self.patches = (
             patch.object(Path, "home", return_value=self.home),
+            patch.dict(
+                os.environ,
+                {"SUNDAY_INSTALL_DIR": str(self.install_root)},
+                clear=False,
+            ),
             patch.object(
                 installation,
                 "config_dir",
