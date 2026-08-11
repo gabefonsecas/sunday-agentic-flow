@@ -59,8 +59,52 @@ class FakeGit:
         return {"published": True}
     def open_pull_request(self, repository, branch, base, title, body):
         self.calls.append(("open_pr", branch, base))
-        return {"url": "https://github.test/pr/1"}
-    def inspect_pull_request(self, repository, reference): return {"url": reference}
+        return {
+            "url": "https://github.test/pr/1", "headRefName": branch,
+            "baseRefName": base,
+        }
+    def find_pull_request(self, repository, branch, base): return None
+    def inspect_pull_request(self, repository, reference):
+        call = next(call for call in reversed(self.calls) if call[0] == "open_pr")
+        return {"url": reference, "headRefName": call[1], "baseRefName": call[2]}
+    def resolve_review_reference(self, repository, reference, base="main"):
+        self.calls.append(("resolve_review", reference))
+        return {
+            "reference": reference, "commit": "abc123", "kind": "branch",
+            "headRefName": reference, "baseRefName": base, "baseCommit": "base123",
+        }
+
+
+class FakeWorktrees:
+    def __init__(self, root):
+        self.root = root
+        self.items = {}
+        self.calls = []
+
+    def create(self, repository, run_id, branch, base):
+        path = self.root / run_id
+        value = {"path": str(path), "branch": branch, "base": base, "existing": False}
+        self.items[run_id] = value
+        self.calls.append(("create", run_id, branch, base))
+        return value
+
+    def inspect(self, repository, run_id, branch=None):
+        return self.items.get(run_id)
+
+    def create_detached(self, repository, run_id, revision):
+        path = self.root / run_id
+        value = {
+            "path": str(path), "head": revision, "revision": revision,
+            "detached": "true", "existing": False,
+        }
+        self.items[run_id] = value
+        self.calls.append(("create_detached", run_id, revision))
+        return value
+
+    def remove(self, repository, run_id, branch=None):
+        value = self.items.pop(run_id, None)
+        self.calls.append(("remove", run_id, branch))
+        return {"path": value["path"] if value else str(self.root / run_id), "removed": True}
 
 
 class FakeHost:
@@ -68,10 +112,12 @@ class FakeHost:
 
     def __init__(self):
         self.routes = []
+        self.repositories = []
 
     def capabilities(self): return {"available": True}
     def execute_agent(self, route, prompt, repository, read_only):
         self.routes.append(route)
+        self.repositories.append(repository)
         stories = ''
         if route.phase == "discovery":
             stories = 'SUNDAY_STORIES: [{"title":"[dev] outcome","description":"complete story"}]\n'

@@ -1,0 +1,59 @@
+name: Live smoke
+
+on:
+  workflow_dispatch:
+    inputs:
+      task_ref:
+        description: Friday task ID from the disposable smoke board
+        required: true
+      project:
+        description: Configured Sunday smoke project
+        required: true
+      host:
+        description: Authenticated host on the smoke runner
+        required: true
+        type: choice
+        options: [codex, claude, gemini, antigravity]
+
+permissions:
+  contents: write
+  pull-requests: write
+  attestations: read
+
+jobs:
+  task-to-pull-request:
+    runs-on: [self-hosted, sunday-smoke]
+    timeout-minutes: 90
+    env:
+      FRIDAY_MCP_API_TOKEN: ${{ secrets.FRIDAY_MCP_API_TOKEN }}
+      FRIDAY_FALLBACK_ASSIGNEE_EMAIL: ${{ secrets.FRIDAY_FALLBACK_ASSIGNEE_EMAIL }}
+      GH_TOKEN: ${{ secrets.SUNDAY_SMOKE_GITHUB_TOKEN }}
+      OPENAI_API_KEY: ${{ secrets.OPENAI_API_KEY }}
+      ANTHROPIC_API_KEY: ${{ secrets.ANTHROPIC_API_KEY }}
+      GEMINI_API_KEY: ${{ secrets.GEMINI_API_KEY }}
+      SUNDAY_CONFIG_FILE: ${{ runner.temp }}/sunday-smoke-config.toml
+      SUNDAY_STATE_DIR: ${{ runner.temp }}/sunday-smoke-state
+    steps:
+      - uses: actions/checkout@v7
+      - uses: actions/setup-python@v7
+        with:
+          python-version: "3.11"
+      - name: Install Sunday
+        run: python -m pip install .
+      - name: Materialize smoke configuration
+        shell: bash
+        env:
+          SUNDAY_SMOKE_CONFIG: ${{ secrets.SUNDAY_SMOKE_CONFIG }}
+        run: printf '%s\n' "$SUNDAY_SMOKE_CONFIG" > "$SUNDAY_CONFIG_FILE"
+      - name: Verify live integrations and models
+        run: sunday doctor --network --models
+      - name: Execute disposable Friday task
+        shell: bash
+        env:
+          SUNDAY_SMOKE_TASK_REF: ${{ inputs.task_ref }}
+          SUNDAY_SMOKE_PROJECT: ${{ inputs.project }}
+          SUNDAY_SMOKE_HOST: ${{ inputs.host }}
+        run: |
+          sunday run "$SUNDAY_SMOKE_TASK_REF" \
+            --project "$SUNDAY_SMOKE_PROJECT" \
+            --host "$SUNDAY_SMOKE_HOST"

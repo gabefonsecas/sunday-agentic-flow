@@ -4,11 +4,7 @@
 import argparse
 import json
 from pathlib import Path
-
-try:
-    import tomllib
-except ModuleNotFoundError:  # Python 3.10
-    import tomli as tomllib
+import tomllib
 
 ROOT = Path(__file__).resolve().parent.parent
 FILES = (

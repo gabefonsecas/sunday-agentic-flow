@@ -17,6 +17,19 @@ class ConfigSecurityTests(unittest.TestCase):
         self.assertEqual(settings.default_host, "claude")
         self.assertEqual(settings.projects["app"].states["completed"], 9)
 
+    def test_reliability_runtime_configuration_loads(self):
+        with tempfile.TemporaryDirectory() as temp:
+            path = Path(temp) / "config.toml"
+            path.write_text(
+                '[runtime]\nlease_ttl_seconds=90\nlease_heartbeat_seconds=20\n'
+                'completed_worktree_retention_days=14\n',
+                encoding="utf-8",
+            )
+            settings = load_settings(path)
+        self.assertEqual(settings.lease_ttl_seconds, 90)
+        self.assertEqual(settings.lease_heartbeat_seconds, 20)
+        self.assertEqual(settings.completed_worktree_retention_days, 14)
+
     def test_status_values_can_be_strings(self):
         with tempfile.TemporaryDirectory() as temp:
             path = Path(temp) / "config.toml"
@@ -30,6 +43,11 @@ class ConfigSecurityTests(unittest.TestCase):
             value = redact({"url": "https://test/?api_token=super-secret-token", "api_token": "raw"})
         self.assertNotIn("super-secret-token", str(value))
         self.assertEqual(value["api_token"], "[REDACTED]")
+
+    def test_authenticated_headers_are_redacted(self):
+        value = redact({"Authorization": "Bearer visible", "Cookie": "session=visible"})
+        self.assertEqual(value["Authorization"], "[REDACTED]")
+        self.assertEqual(value["Cookie"], "[REDACTED]")
 
     def test_current_git_repository_becomes_implicit_project(self):
         with tempfile.TemporaryDirectory() as temp:

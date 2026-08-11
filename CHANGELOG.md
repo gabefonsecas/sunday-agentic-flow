@@ -2,6 +2,14 @@
 
 ## Unreleased
 
+- Added per-run Git worktrees and scoped commits.
+- Added expiring task leases, heartbeats, recovery, and SQLite backups.
+- Added automatic Friday and GitHub effect reconciliation.
+- Added resilient Friday SSE retries, timeouts, and safe shutdown.
+- Added verified model probes with requested and observed evidence.
+- Added release-based updates, checksums, provenance, and rollback.
+- Added safe worktree cleanup and richer reliability reports.
+- Added live smoke and WSL 2 release gates.
 - Added live model-transition output and terminal, Markdown, Mermaid, and JSON route dashboards.
 - Expanded Codex pools across GPT-5.4 mini, GPT-5.4, GPT-5.5, and GPT-5.6.
 - Expanded Claude, Gemini, and Antigravity pools across economy through deep tiers.
@@ -14,8 +22,7 @@
 - Changed the IA checkbox from an execution trigger into an audit marker set by Sunday.
 - Added Friday status-column transitions while preserving legacy group-based workflows.
 - Added the real Squad Mustafar status mapping to the configuration tutorial.
-- Added Python 3.10 and Ubuntu 22.04/WSL compatibility through `tomli`.
-- Replaced the missing `tomllib` traceback with an actionable installer diagnostic.
+- Standardized the runtime on Python 3.11 or newer.
 - Added conversational Friday task creation through Sunday skills.
 - Added current Git repository inference and a reusable default Friday mapping.
 - Added model-assisted task detailing, token-based assignment, and create-then-execute flow.
