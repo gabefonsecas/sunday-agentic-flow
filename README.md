@@ -1,103 +1,114 @@
-# Agentic Dev Flow
+# Sunday
 
-Plugin global para executar todo o fluxo de desenvolvimento.
+Sunday transforma pedidos em linguagem natural em tarefas Friday e executa o desenvolvimento até uma pull request auditável.
 
-Ele funciona com Codex, Claude Code, Gemini CLI e Antigravity.
-O plugin não precisa ser instalado dentro dos projetos.
-Ele usa somente modelos remotos fornecidos pelo host escolhido.
+Depois da instalação e configuração inicial, o fluxo acontece dentro da CLI de IA.
+Você não precisa decorar nem digitar comandos Sunday.
 
-Uma solicitação comum inicia o orquestrador automaticamente.
-Não é necessário citar skills, agentes ou modelos.
+Exemplos de pedidos:
 
-## O que o fluxo faz
+```text
+Sunday, crie uma tarefa no Friday para corrigir o login.
+Sunday, crie três histórias para esta feature.
+Sunday, crie a tarefa e já comece a executar.
+Sunday, execute a tarefa Friday 1234.
+Sunday, acompanhe a execução 8b17...
+Sunday, revise esta branch.
+```
 
-Para qualquer feature, correção, refatoração ou manutenção, ele:
+Se a CLI de IA estiver aberta dentro de `~/src/smb-products`, Sunday assume que a tarefa pertence ao projeto `smb-products`.
+Ele usa a raiz Git atual, lê `AGENTS.md` e instruções equivalentes, e só exige o nome do projeto quando existir ambiguidade real.
 
-1. Localiza a raiz correta do repositório.
-2. Lê `AGENTS.md`, `GEMINI.md` e regras aplicáveis.
-3. Descobre arquitetura, convenções, testes e integração Git.
-4. Transforma requisitos incompletos em critérios verificáveis.
-5. Resolve workspace, board, grupos e colunas no Friday.
-6. Escreve e publica as histórias necessárias.
-7. Move os cards conforme o trabalho realmente avança.
-8. Implementa cada história respeitando o projeto.
-9. Executa testes, lint, build e verificações relevantes.
-10. Revisa a branch contra sua base correta.
-11. Publica a branch e abre uma pull request.
-12. Escolhe `main` ou `homolog` usando evidências.
-13. Publica o link da PR no item Friday.
-14. Mantém falhas e riscos registrados no card.
+Ele recebe um pedido ou item Friday e controla todo o fluxo:
 
-## Roteamento automático entre modelos
+1. Assume a tarefa usando o usuário do token.
+2. Lê as regras e a arquitetura do projeto.
+3. Converte requisitos vagos em histórias verificáveis.
+4. Publica as histórias no Friday sem duplicação.
+5. Cria uma branch baseada em `main` ou `homolog`.
+6. Executa a implementação usando o modelo adequado.
+7. Verifica testes e critérios em outro contexto.
+8. Faz code review usando um modelo profundo.
+9. Cria commit, push e pull request.
+10. Vincula a pull request ao item Friday.
+
+Os comandos abaixo são a API interna usada pelas skills e também ficam disponíveis para automação:
+
+```bash
+sunday create "corrigir o login"
+sunday create "corrigir o login" --execute
+sunday run ID_DA_TAREFA --project NOME_DO_PROJETO
+```
+
+O watcher opcional inicia tarefas etiquetadas automaticamente.
+
+## Como Sunday funciona
+
+Sunday possui um runtime Python independente dos hosts.
+As skills apresentam o produto dentro de cada IA.
+O runtime controla estado, efeitos externos e recuperação.
+
+As fases persistidas são:
+
+```text
+intake
+discovery
+stories
+publication
+implementation
+verification
+review
+pull_request
+completed
+```
+
+Falhas recuperáveis entram em `paused`.
+Falhas finais podem entrar em `failed`.
+
+O banco SQLite fica fora dos projetos:
+
+```text
+~/.local/state/sunday/sunday.db
+```
+
+No Windows nativo ele usa `%LOCALAPPDATA%\sunday`.
+
+## Roteamento de modelos
+
+Sunday inicia uma execução headless separada para cada fase.
+O modelo é passado explicitamente ao CLI do host.
+
+| Fase | Codex | Claude | Gemini | Antigravity |
+| --- | --- | --- | --- | --- |
+| Descoberta | `gpt-5.6-terra` | `haiku` | `flash` | `flash` |
+| Implementação | `gpt-5.6-sol` | `sonnet` | `pro` | `pro` |
+| Verificação | `gpt-5.6-terra` | `sonnet` | `pro` | `pro` |
+| Review | `gpt-5.6-sol` | `opus` | `pro` | `pro` |
+
+Cada execução registra:
+
+- modelo solicitado;
+- modelo observado;
+- mecanismo de verificação;
+- duração;
+- confiança declarada;
+- resultado da fase;
+- tentativas e escalonamentos.
+
+O padrão usa somente o fornecedor do host escolhido.
+O modo entre fornecedores é opcional.
 
 Não existe modelo local neste projeto.
-Também não existe servidor Ollama, MLX ou LM Studio.
+Não existe Ollama, MLX ou mistura de pesos.
+Interpolação significa roteamento, escalonamento e consenso.
 
-O orquestrador escolhe modelos remotos por função:
+# Instalação completa no WSL 2
 
-| Função | Nível | Codex | Claude | Gemini CLI | Antigravity |
-| --- | --- | --- | --- | --- | --- |
-| Descoberta e resumo | Rápido | `gpt-5.6-terra` | `haiku` | Gemini Flash | `flash` |
-| Implementação e testes | Balanceado | `gpt-5.6-sol` | `sonnet` | Gemini Pro | `pro` |
-| Verificação independente | Rápido e crítico | `gpt-5.6-terra` | `sonnet` | Gemini Pro | `pro` |
-| Arquitetura e revisão | Profundo | `gpt-5.6-sol` com `xhigh` | `opus` | Gemini Pro | `pro` |
+Este tutorial parte de uma instalação vazia.
 
-Os nomes exatos podem depender da conta contratada.
-Quando um modelo não estiver disponível, o host herda o modelo ativo.
+## 1. Instalar o WSL 2
 
-No Gemini, `kind: local` significa subagente da sessão.
-Isso não significa modelo local ou inferência offline.
-
-A interpolação ocorre na camada semântica:
-
-- Um agente descobre e resume evidências.
-- Outro agente implementa ou verifica a solução.
-- Um agente profundo critica riscos importantes.
-- O agente principal confirma tudo no repositório.
-- Somente o agente principal altera Friday, Git e PRs.
-
-Não ocorre mistura de pesos entre arquiteturas diferentes.
-
-A transição acontece por delegação entre subagentes.
-O modelo da conversa principal não muda silenciosamente.
-Cada fase abre um contexto especialista independente.
-
-As quatro transições obrigatórias são:
-
-1. Descoberta com o analista rápido.
-2. Implementação com o worker balanceado.
-3. Verificação com um agente independente.
-4. Revisão final com o agente profundo.
-
-O relatório final apresenta um `route ledger`.
-Ele mostra agente, nível, modelo observado e resultado.
-Se o host não suportar subagentes, aparece `degraded`.
-
-## Compatibilidade
-
-O tutorial principal usa Windows x64 com WSL 2.
-O mesmo pacote também funciona em Linux e macOS.
-
-Requisitos mínimos:
-
-- Windows 10 ou 11 com virtualização habilitada.
-- WSL 2 com Ubuntu 22.04 ou superior.
-- Python 3.9 ou superior.
-- Git.
-- Acesso ao Friday.
-- Conta para pelo menos um host suportado.
-- Acesso ao repositório remoto e provedor de PRs.
-
-Você não precisa instalar todos os quatro hosts.
-Instale somente aqueles usados pela sua equipe.
-
-# Tutorial completo para WSL 2
-
-## 1. Instalar WSL 2 no Windows
-
-Abra PowerShell como Administrador.
-
-Execute:
+Abra o PowerShell como Administrador.
 
 ```powershell
 wsl --install -d Ubuntu
@@ -106,26 +117,35 @@ wsl --set-default-version 2
 ```
 
 Reinicie o Windows quando solicitado.
-Depois abra o aplicativo Ubuntu.
-
+Abra o aplicativo Ubuntu.
 Crie seu usuário e senha Linux.
-Confirme que a distribuição usa WSL 2:
+
+Confirme a versão no PowerShell:
 
 ```powershell
 wsl --list --verbose
 ```
 
-A coluna `VERSION` deve mostrar `2`.
+A distribuição Ubuntu deve mostrar `VERSION 2`.
 
 ## 2. Preparar o Ubuntu
 
-Todos os comandos seguintes rodam dentro do Ubuntu.
+Execute dentro do Ubuntu:
 
 ```bash
 sudo apt update
 sudo apt upgrade -y
-sudo apt install -y ca-certificates curl git jq python3 python3-venv python3-pip unzip build-essential
+sudo apt install -y ca-certificates curl git jq python3 python3-venv python3-pip unzip build-essential gh
 ```
+
+Confirme o Python:
+
+```bash
+python3 --version
+```
+
+Sunday exige Python 3.11 ou superior.
+Ubuntu 24.04 já atende esse requisito.
 
 Configure sua identidade Git:
 
@@ -134,54 +154,35 @@ git config --global user.name "Seu Nome"
 git config --global user.email "voce@empresa.com"
 ```
 
-Mantenha repositórios dentro do sistema Linux.
-Isso oferece desempenho melhor que `/mnt/c`.
+Autentique o GitHub CLI:
 
-Exemplo:
+```bash
+gh auth login
+gh auth status
+```
+
+Mantenha repositórios dentro do filesystem Linux.
+Evite trabalhar diretamente em `/mnt/c`.
 
 ```bash
 mkdir -p ~/src ~/plugins
 ```
 
-## 3. Instalar Node.js no WSL
+## 3. Instalar Node.js
 
-Codex e Gemini CLI precisam de Node.js atual.
-O Gemini CLI exige Node.js 20 ou superior.
-
-Instale Node.js 22 pelo repositório NodeSource:
+Codex e Gemini CLI usam Node.js.
 
 ```bash
 curl -fsSL https://deb.nodesource.com/setup_22.x -o /tmp/nodesource_setup.sh
 sudo -E bash /tmp/nodesource_setup.sh
 sudo apt install -y nodejs
-```
-
-Confirme:
-
-```bash
 node --version
 npm --version
 ```
 
-O comando `node --version` deve mostrar versão 20 ou superior.
+## 4. Instalar pelo menos um host
 
-## 4. Instalar o GitHub CLI
-
-Este passo permite autenticação, push e criação de PRs.
-
-```bash
-sudo apt install -y gh
-gh auth login
-gh auth status
-```
-
-Escolha GitHub.com ou seu servidor corporativo.
-Escolha HTTPS ou SSH conforme sua organização.
-
-Se outro provedor hospeda o repositório, instale seu cliente.
-O plugin também pode usar ferramentas MCP disponíveis no host.
-
-## 5. Instalar os hosts desejados
+Não é necessário instalar todos.
 
 ### Codex
 
@@ -191,12 +192,9 @@ codex --version
 codex
 ```
 
-Na primeira execução, conclua a autenticação apresentada.
-O Codex requer WSL 2 nas versões atuais.
+Conclua a autenticação apresentada.
 
 ### Claude Code
-
-Use o instalador oficial para Linux e WSL:
 
 ```bash
 curl -fsSL https://claude.ai/install.sh | bash
@@ -205,7 +203,7 @@ claude doctor
 claude
 ```
 
-Conclua a autenticação no navegador.
+Conclua a autenticação apresentada.
 
 ### Gemini CLI
 
@@ -215,89 +213,65 @@ gemini --version
 gemini
 ```
 
-Conclua a autenticação solicitada.
+Conclua a autenticação apresentada.
 
-### Antigravity CLI
+### Antigravity
 
-Esta é a opção otimizada para Antigravity dentro do WSL.
+Instale o Antigravity fornecido pela sua organização.
+Garanta que o executável `agy` esteja disponível no WSL.
 
 ```bash
-curl -fsSL https://antigravity.google/cli/install.sh | bash
 agy --version
-agy
 ```
 
-Conclua a autenticação no navegador.
-O binário fica em `~/.local/bin/agy`.
+Quando `agy` não existe, Sunday usa Gemini CLI como executor headless.
+Os agentes instalados continuam otimizados para Antigravity.
 
-Garanta que os binários locais estejam no `PATH`:
+Quando a instalação usa outro comando, configure um template:
+
+```dotenv
+SUNDAY_ANTIGRAVITY_COMMAND=agy --model {model} --prompt -
+```
+
+Os agentes específicos ficam em `adapters/antigravity`.
+Sunday seleciona `flash` e `pro` automaticamente.
+
+## 5. Clonar Sunday
 
 ```bash
-printf '\nexport PATH="$HOME/.local/bin:$PATH"\n' >> ~/.bashrc
-source ~/.bashrc
+git clone https://github.com/gabefonsecas/sunday-agentic-flow.git ~/plugins/sunday-agentic-flow
+cd ~/plugins/sunday-agentic-flow
 ```
 
-## 6. Colocar o plugin no WSL
+Sunday fica fora dos projetos trabalhados.
 
-O diretório global esperado é:
-
-```text
-~/plugins/agentic-dev-flow
-```
-
-Se recebeu um arquivo compactado no Windows, extraia ou copie assim:
+## 6. Criar o arquivo de segredos
 
 ```bash
-cp -a /mnt/c/Users/SEU_USUARIO/Downloads/agentic-dev-flow ~/plugins/
-cd ~/plugins/agentic-dev-flow
+mkdir -p ~/.config/sunday
+cp .env.example ~/.config/sunday/.env
+chmod 600 ~/.config/sunday/.env
+nano ~/.config/sunday/.env
 ```
 
-Substitua `SEU_USUARIO` pelo usuário do Windows.
-
-Se o plugin estiver em um repositório Git, clone-o diretamente:
-
-```bash
-git clone https://github.com/gabefonsecas/agentic-dev-flow.git ~/plugins/agentic-dev-flow
-cd ~/plugins/agentic-dev-flow
-```
-
-Não coloque este plugin dentro do projeto trabalhado.
-
-## 7. Criar o arquivo `.env`
-
-Todas as chaves externas devem ficar neste arquivo:
-
-```text
-~/.config/agentic-dev-flow/.env
-```
-
-Crie o diretório:
-
-```bash
-mkdir -p ~/.config/agentic-dev-flow
-cp .env.example ~/.config/agentic-dev-flow/.env
-chmod 600 ~/.config/agentic-dev-flow/.env
-```
-
-Edite o arquivo:
-
-```bash
-nano ~/.config/agentic-dev-flow/.env
-```
-
-Conteúdo esperado:
+Conteúdo mínimo:
 
 ```dotenv
 FRIDAY_MCP_BASE_URL=https://friday.eletromidia.com.br/api/mcp_sse.php
 FRIDAY_MCP_API_TOKEN=seu_token_friday
 ```
 
-O responsável é descoberto usando somente esse token.
-Nenhum e-mail ou ID precisa ser configurado.
+Sunday tenta identificar o usuário nesta ordem:
 
-O bridge chama `list_my_tasks`, filtrado pelo token.
-Ele encontra a identidade comum aos cards retornados.
-Depois valida o usuário no workspace escolhido.
+1. ferramenta Friday `get_current_user`, quando disponível;
+2. identidade comum nas tarefas filtradas pelo token;
+3. e-mail fallback validado nos membros do workspace.
+
+O fallback é necessário somente para contas sem tarefas.
+
+```dotenv
+FRIDAY_FALLBACK_ASSIGNEE_EMAIL=voce@empresa.com
+```
 
 Boards com várias colunas de pessoas exigem:
 
@@ -305,407 +279,477 @@ Boards com várias colunas de pessoas exigem:
 FRIDAY_ASSIGNEE_COLUMN=Responsável
 ```
 
-Salve usando `Ctrl+O`, Enter e `Ctrl+X`.
+Nenhum ID de usuário fica fixo no código.
+Cada token resolve seu próprio usuário.
 
-Nunca coloque o token em manifests ou regras.
-Nunca faça commit do arquivo `.env`.
+Chaves opcionais entre fornecedores também ficam no `.env`:
 
-Outro arquivo pode ser usado assim:
-
-```bash
-export AGENTIC_DEV_FLOW_ENV_FILE=/caminho/seguro/.env
+```dotenv
+OPENAI_API_KEY=
+ANTHROPIC_API_KEY=
+GEMINI_API_KEY=
 ```
 
-## 8. Executar o instalador do plugin
+Nunca coloque segredos no `config.toml`.
 
-Dentro do diretório do plugin, execute:
+## 7. Instalar Sunday
 
 ```bash
-cd ~/plugins/agentic-dev-flow
+cd ~/plugins/sunday-agentic-flow
 python3 scripts/install.py
+```
+
+Garanta os comandos locais no `PATH`:
+
+```bash
+echo 'export PATH="$HOME/.local/bin:$PATH"' >> ~/.bashrc
+source ~/.bashrc
+```
+
+Confirme:
+
+```bash
+sunday --help
+sunday doctor
 ```
 
 O instalador cria:
 
-- O comando global `agentic-friday-mcp`.
-- A configuração privada no perfil Linux.
-- A entrada do marketplace pessoal do Codex.
-- O plugin global do Antigravity.
-- Agentes remotos específicos para cada host.
+- `sunday`;
+- `sunday-friday-mcp`;
+- `~/.config/sunday/config.toml`;
+- `~/.config/sunday/.env` quando ausente;
+- agentes globais para os quatro hosts;
+- plugin Sunday no marketplace pessoal do Codex;
+- plugin global do Antigravity.
 
-Os agentes ficam nestes diretórios:
+O instalador usa backup e rollback automático.
+Ele nunca instala arquivos dentro dos projetos.
 
-```text
-~/.codex/agents
-~/.claude/agents
-~/.gemini/agents
-~/.gemini/config/agents
+## 8. Descobrir IDs do Friday
+
+Liste workspaces:
+
+```bash
+sunday friday
 ```
 
-O instalador nunca altera o repositório do projeto.
+Liste boards de um workspace:
 
-## 9. Ativar o plugin em cada host
+```bash
+sunday friday --workspace 37
+```
 
-Ative somente os hosts instalados.
+Liste grupos e colunas de um board:
+
+```bash
+sunday friday --workspace 37 --board 46
+```
+
+Guarde os IDs usados pelo seu fluxo.
+
+## 9. Configurar um projeto
+
+Edite:
+
+```bash
+nano ~/.config/sunday/config.toml
+```
+
+Exemplo completo:
+
+```toml
+[runtime]
+default_host = "auto"
+default_project = "portal"
+cross_provider = false
+strict_model_verification = true
+watcher_interval = 60
+minimum_confidence = 0.70
+max_phase_attempts = 2
+
+[projects.portal]
+repository = "~/src/portal"
+workspace_id = 37
+board_id = 46
+intake_group_id = 101
+ready_label = "sunday-ready"
+base_branch = "auto"
+pr_column = "Pull Request"
+people_column = "Responsável"
+publish_stories = true
+
+[projects.portal.states]
+discovery = 102
+stories = 103
+publication = 104
+implementation = 105
+verification = 106
+review = 107
+pull_request = 108
+completed = 109
+failed = 110
+```
+
+Essa configuração é feita uma vez por mapeamento Friday. No uso normal, abra Codex, Claude, Gemini ou Antigravity dentro do repositório e converse com Sunday.
+`default_project` define qual mapeamento de board e estados será reutilizado em novas pastas Git.
+O nome e o caminho do projeto sempre vêm da pasta atual. Se houver apenas um projeto configurado, ele já funciona como padrão mesmo sem esse campo.
+
+Significado dos campos:
+
+- `repository`: clone local onde Sunday trabalhará;
+- `default_project`: mapeamento Friday padrão para repositórios ainda não cadastrados;
+- `workspace_id`: workspace Friday;
+- `board_id`: board da tarefa;
+- `intake_group_id`: grupo que receberá histórias derivadas;
+- `ready_label`: etiqueta exigida pelo watcher;
+- `base_branch`: `auto`, `main` ou `homolog`;
+- `pr_column`: coluna de link da pull request;
+- `people_column`: coluna de responsável;
+- `states`: mapeamento das fases para grupos Friday.
+
+Quando `base_branch = "auto"`, Sunday usa `homolog` para demandas de homologação.
+Nos demais casos, ele usa `main` quando disponível.
+
+## 10. Ativar em cada host
 
 ### Codex
 
 ```bash
-codex plugin add agentic-dev-flow@personal
+codex plugin add sunday-agentic-flow@personal
 codex plugin list
 codex mcp list
 ```
 
-O MCP esperado chama-se `friday`.
-Abra uma sessão nova após instalar ou atualizar.
+Abra uma tarefa nova no Codex após instalar.
 
 ### Claude Code
 
 ```bash
-claude plugin marketplace add ~/plugins/agentic-dev-flow
-claude plugin install agentic-dev-flow@agentic-dev-flow-local --scope user
+claude plugin marketplace add ~/plugins/sunday-agentic-flow
+claude plugin install sunday-agentic-flow@sunday-local --scope user
 claude plugin list
 ```
 
-Feche e abra novamente o Claude Code.
+Abra uma sessão nova após instalar.
 
 ### Gemini CLI
 
 ```bash
-gemini extensions link ~/plugins/agentic-dev-flow
+gemini extensions link ~/plugins/sunday-agentic-flow
 gemini extensions list
 ```
 
-Feche e abra novamente o Gemini CLI.
+Abra uma sessão nova após instalar.
 
-Os subagentes do Gemini usam o recurso preview atual.
-Eles são instalados no perfil do usuário.
+### Antigravity
 
-### Antigravity CLI
-
-O instalador cria este vínculo global:
+O instalador cria:
 
 ```text
-~/.gemini/config/plugins/agentic-dev-flow
+~/.gemini/config/plugins/sunday-agentic-flow
+~/.gemini/config/agents/sunday-task-analyst.md
+~/.gemini/config/agents/sunday-implementation-worker.md
+~/.gemini/config/agents/sunday-implementation-verifier.md
+~/.gemini/config/agents/sunday-branch-reviewer.md
 ```
 
-Feche e abra novamente o Antigravity CLI.
-Depois confirme o plugin nas customizações disponíveis.
+Reinicie o Antigravity depois da instalação.
 
-Os agentes do Antigravity usam níveis `flash` e `pro`.
-Essa configuração evita modelos locais e escolhas manuais.
+# Uso
 
-## 10. Validar a instalação
+## Uso normal pela CLI de IA
 
-Execute:
+Abra o host na pasta do projeto:
 
 ```bash
-cd ~/plugins/agentic-dev-flow
-python3 scripts/check_environment.py
-python3 scripts/check_model_routing.py
-```
-
-Confirme os seguintes campos:
-
-- `python` possui um caminho válido.
-- Seu host aparece com um caminho válido.
-- `friday_configured` mostra `true`.
-- `friday_identity.source` menciona o token Friday.
-- Os quatro diretórios de agentes são exibidos.
-- `check_model_routing.py` mostra `valid: true`.
-
-Confira o bridge Friday:
-
-```bash
-command -v agentic-friday-mcp
-```
-
-Confira cada host instalado:
-
-```bash
-codex plugin list
-claude plugin list
-gemini extensions list
-agy --version
-```
-
-# Uso diário
-
-## Executar uma tarefa completa
-
-Entre no projeto:
-
-```bash
-cd ~/src/meu-projeto
-```
-
-Abra qualquer host instalado:
-
-```bash
+cd ~/src/smb-products
 codex
 ```
 
-Ou:
-
-```bash
-claude
-gemini
-agy
-```
-
-Descreva somente a necessidade real:
+Também pode ser `claude`, `gemini` ou Antigravity. Depois, faça pedidos naturais:
 
 ```text
-Corrija a recuperação de senha que expira antes do prazo.
+Sunday, crie uma tarefa no Friday para adicionar paginação ao catálogo.
 ```
 
-Isso basta.
+Sunday irá:
 
-Não escreva `Use orchestrate-development-task`.
-Não selecione agentes ou modelos manualmente.
-Não repita o processo operacional no pedido.
+1. identificar `smb-products` pela raiz Git atual;
+2. ler as regras e o contexto relevante do repositório;
+3. usar o modelo de descoberta adequado para completar requisitos vagos;
+4. criar a tarefa no grupo de entrada configurado;
+5. atribuí-la ao usuário identificado pelo token Friday;
+6. devolver o ID e o título do card.
 
-O plugin detecta a solicitação de desenvolvimento automaticamente.
-Ele inicia descoberta, histórias, execução, revisão e entrega.
-
-Quando a execução começa, o plugin também:
-
-1. Resolve o usuário autenticado pelo token.
-2. Descobre a coluna Friday do tipo `people`.
-3. Atualiza essa coluna com o ID correto.
-4. Exige confirmação `assigned: true`.
-5. Somente depois inicia mudanças no código.
-
-## Solicitações incompletas
-
-Uma demanda curta também deve funcionar:
+Para criar e executar em seguida:
 
 ```text
-O checkout está duplicando pedidos em tentativas simultâneas.
+Sunday, crie uma tarefa para adicionar paginação ao catálogo e já comece a executar.
 ```
 
-O orquestrador deve descobrir o contexto do projeto.
-Ele transforma evidências em critérios de aceitação.
-Ele pergunta somente quando uma escolha muda o produto.
-
-## Criar histórias sem implementar
-
-Descreva o limite desejado naturalmente:
+Para decompor sem iniciar a implementação:
 
 ```text
-Planeje essa demanda e publique as histórias no Friday. Não implemente ainda.
+Sunday, crie três histórias no Friday para migrar o catálogo para a nova API.
 ```
 
-## Executar um item Friday existente
+Os hosts invocam as skills e a CLI interna. Não copie comandos `sunday` durante o uso cotidiano.
 
-```text
-Implemente o item Friday 1234 até uma PR revisada.
-```
+## API de linha de comando para automação
 
-## Revisar uma branch
+Esta seção é opcional. Ela documenta o motor chamado pelas skills.
 
-Abra o host dentro do repositório.
-Depois escreva:
-
-```text
-Revise a branch feature/pagamentos contra homolog.
-```
-
-O revisor deve:
-
-1. Encontrar a base e o merge-base.
-2. Ler todas as regras aplicáveis.
-3. Inspecionar o diff completo.
-4. Verificar caminhos afetados e testes.
-5. Priorizar erros concretos e regressões.
-6. Evitar comentários puramente estéticos.
-7. Não modificar código durante revisão somente leitura.
-
-Para corrigir depois:
-
-```text
-Corrija os achados confirmados e atualize o Friday.
-```
-
-## Escolha entre `main` e `homolog`
-
-O plugin usa evidências do pedido e repositório.
-
-Ele prefere `homolog` quando:
-
-- A tarefa pede homologação ou staging.
-- O fluxo exige validação antes de produção.
-- As regras do projeto determinam essa base.
-
-Ele prefere `main` quando:
-
-- A entrega vai diretamente para produção.
-- Um hotfix exige essa base.
-- `homolog` não existe.
-- As regras definem `main` como integração.
-
-O agente pergunta quando a decisão continuar ambígua.
-
-## Estado dos cards Friday
-
-O fluxo semântico é:
-
-```text
-entrada -> entendida -> planejada -> publicada -> em andamento
--> validada -> PR aberta -> revisada
-```
-
-Esses estados são mapeados aos grupos existentes.
-O plugin não cria grupos administrativos implicitamente.
-Uma falha nunca é movida para concluída.
-
-## Ferramentas Friday utilizadas
-
-O plugin pode usar:
-
-- `list_workspaces`
-- `list_boards`
-- `list_groups`
-- `list_items`
-- `list_columns`
-- `create_item`
-- `move_item`
-- `update_cell_value`
-- `assign_authenticated_user`
-- `add_comment`
-- `list_ia_tasks`
-
-IDs, colunas e URLs nunca devem ser inventados.
-
-# Atualização
-
-Atualize os arquivos do plugin primeiro.
-Depois reinstale os adaptadores:
+### Criar tarefas
 
 ```bash
-cd ~/plugins/agentic-dev-flow
-python3 scripts/install.py
+sunday create "adicionar paginação ao catálogo"
+sunday create "migrar o catálogo" --count 3
+sunday create "corrigir o login" --execute
 ```
 
-Atualize cada host utilizado:
+Por padrão, a tarefa é atribuída ao usuário derivado do token Friday.
+Use `--no-assign` apenas para criar um card sem responsável.
+Repetir o mesmo pedido retorna o resultado anterior sem duplicar cards.
+`--allow-duplicate` exige uma intenção explícita de criar outra cópia.
+
+## Executar uma tarefa
 
 ```bash
-codex plugin add agentic-dev-flow@personal
-claude plugin update agentic-dev-flow@agentic-dev-flow-local
-gemini extensions link ~/plugins/agentic-dev-flow
+sunday run 1234 --project portal
 ```
 
-Reinicie as sessões abertas.
-
-# Solução de problemas
-
-## `agentic-friday-mcp` não foi encontrado
+Também aceita uma URL cujo último segmento seja o ID:
 
 ```bash
-export PATH="$HOME/.local/bin:$PATH"
-python3 ~/plugins/agentic-dev-flow/scripts/install.py
-command -v agentic-friday-mcp
+sunday run https://friday.exemplo/tarefas/1234 --project portal
 ```
 
-## Friday não conecta
+Escolha um host explicitamente quando necessário:
 
 ```bash
-chmod 600 ~/.config/agentic-dev-flow/.env
-python3 ~/plugins/agentic-dev-flow/scripts/check_environment.py
+sunday run 1234 --project portal --host codex
+sunday run 1234 --project portal --host claude
+sunday run 1234 --project portal --host gemini
+sunday run 1234 --project portal --host antigravity
 ```
 
-Confirme `FRIDAY_MCP_BASE_URL` e `FRIDAY_MCP_API_TOKEN`.
-Depois reinicie o host para recarregar o MCP.
+Com `--host auto`, Sunday usa o primeiro host disponível.
 
-## Token de uma conta sem tarefas
+## Executar pelo watcher
 
-O Friday atual não expõe `get_current_user`.
-Nesse caso, `list_my_tasks` não fornece identidade.
-O plugin interrompe a atribuição com segurança.
-Ele nunca usa e-mail fixo como fallback.
+Adicione a etiqueta `sunday-ready` ao item Friday.
+O item também precisa estar atribuído ao usuário do token.
 
-Para suportar contas totalmente novas, o servidor Friday
-deve expor `get_current_user` usando o mesmo token.
-
-## O host não inicia o fluxo automaticamente
-
-Confirme que o plugin está habilitado.
-Depois abra uma sessão completamente nova.
-
-Também confirme os arquivos instalados:
+Teste uma consulta única:
 
 ```bash
-find ~/.codex/agents ~/.claude/agents ~/.gemini/agents ~/.gemini/config/agents \
-  -maxdepth 1 -name 'agentic-*' -print
+sunday watch --project portal --once
 ```
 
-## Claude não encontra atualizações
+Mantenha o watcher ativo:
 
 ```bash
-claude plugin update agentic-dev-flow@agentic-dev-flow-local
+sunday watch --project portal
 ```
 
-Reinicie a sessão depois da atualização.
+Use systemd de usuário quando quiser execução contínua.
 
-## Gemini não encontra agentes
+```ini
+[Unit]
+Description=Sunday Friday watcher
+After=network-online.target
 
-Confirme se o recurso de agentes está habilitado.
-Use `/agents` dentro do Gemini CLI para verificar.
+[Service]
+ExecStart=%h/.local/bin/sunday watch --project portal
+Restart=on-failure
+RestartSec=15
 
-## Antigravity não encontra o plugin
+[Install]
+WantedBy=default.target
+```
+
+Salve como `~/.config/systemd/user/sunday.service`.
 
 ```bash
-ls -la ~/.gemini/config/plugins/agentic-dev-flow
+systemctl --user daemon-reload
+systemctl --user enable --now sunday.service
+systemctl --user status sunday.service
 ```
 
-Execute novamente `scripts/install.py` quando necessário.
-Depois reinicie completamente o Antigravity.
-
-## Node do Windows apareceu dentro do WSL
-
-Confira:
+## Consultar execução
 
 ```bash
-which node
-which npm
+sunday status
+sunday status RUN_ID
 ```
 
-Os caminhos não devem começar com `/mnt/c`.
-Reinstale Node.js dentro do Ubuntu se necessário.
+## Retomar uma execução
 
-# Segurança operacional
+Resolva primeiro o erro apresentado.
 
-- Mantenha qualquer token somente no `.env`.
-- Use permissão `600` no arquivo privado.
-- Autorize somente ferramentas necessárias.
-- Revise mudanças antes do primeiro push.
-- Não marque validações falhas como concluídas.
-- Não permita exclusões administrativas automáticas.
-- O agente principal controla mudanças externas.
-
-# Estrutura do pacote
-
-```text
-agentic-dev-flow/
-├── .codex-plugin/          Manifesto Codex
-├── .claude-plugin/         Manifesto Claude Code
-├── adapters/               Agentes específicos por host
-├── rules/                  Regras automáticas do Antigravity
-├── scripts/                Instalador e bridge Friday
-├── skills/                 Fluxos reutilizáveis
-├── .env.example            Modelo de configuração
-├── gemini-extension.json   Manifesto Gemini CLI
-├── mcp_config.json         MCP do Antigravity
-└── plugin.json             Manifesto Antigravity
+```bash
+sunday resume RUN_ID
 ```
 
-# Referências oficiais
+Uma operação de alto risco exige aprovação explícita:
 
-- [Codex CLI](https://learn.chatgpt.com/docs/codex/cli)
-- [Codex no WSL](https://learn.chatgpt.com/docs/windows/wsl)
-- [Claude Code no WSL](https://code.claude.com/docs/en/installation)
-- [Gemini CLI](https://geminicli.com/docs/get-started/installation/)
-- [Subagentes do Gemini CLI](https://geminicli.com/docs/core/subagents/)
-- [Antigravity CLI](https://antigravity.google/docs/cli/install)
-- [Plugins do Antigravity](https://antigravity.google/docs/plugins)
-- [Subagentes do Antigravity](https://antigravity.google/docs/subagents)
+```bash
+sunday resume RUN_ID --approve
+```
+
+Use `--retry-uncertain` somente após verificar o Friday ou GitHub.
+Esse sinal permite repetir uma operação cuja resposta foi perdida.
+
+```bash
+sunday resume RUN_ID --retry-uncertain
+```
+
+Encerre definitivamente uma execução pausada quando necessário:
+
+```bash
+sunday fail RUN_ID --reason "demanda cancelada"
+```
+
+## Fazer code review
+
+```bash
+cd ~/src/portal
+sunday review minha-branch --project portal
+sunday review 123 --project portal
+sunday review https://github.com/empresa/portal/pull/123 --project portal
+```
+
+O review é independente e não altera arquivos.
+
+## Gerar relatório
+
+```bash
+sunday report RUN_ID
+sunday report RUN_ID --format json
+sunday report RUN_ID --output ~/relatorios/sunday.md
+```
+
+O relatório contém timeline e route ledger.
+Também inclui recomendações de roteamento.
+Sunday nunca altera a política automaticamente.
+
+# Modo entre fornecedores
+
+Ative no `config.toml`:
+
+```toml
+[runtime]
+cross_provider = true
+max_phase_attempts = 3
+```
+
+Instale e autentique os fornecedores desejados.
+Sunday começa no host selecionado.
+Uma nova tentativa pode usar outro fornecedor disponível.
+
+O escalonamento acontece quando:
+
+- o processo retorna erro;
+- o modelo informa falha;
+- a confiança fica abaixo do mínimo;
+- a troca obrigatória não é verificada;
+- testes ou review não aprovam a fase.
+
+# Segurança e autonomia
+
+Sunday automatiza:
+
+- atribuição no Friday;
+- criação e movimentação de histórias;
+- branch;
+- implementação;
+- testes;
+- review;
+- commit;
+- push;
+- pull request;
+- vínculo da pull request no Friday.
+
+Sunday pausa antes de:
+
+- produção;
+- deploy;
+- migração destrutiva;
+- exclusão em massa;
+- manipulação de segredos;
+- ações que exigem reconciliação.
+
+Sunday não executa merge nem deploy automaticamente.
+
+Tokens são removidos dos eventos e relatórios.
+URLs autenticadas também são redigidas.
+
+# Manutenção
+
+## Diagnóstico
+
+```bash
+sunday doctor
+sunday doctor --network
+```
+
+O modo `--network` também testa o Friday.
+
+## Atualização
+
+```bash
+sunday update
+```
+
+Esse comando executa atualização Git com fast-forward.
+Depois reinstala os arquivos gerenciados.
+Falhas de instalação restauram os arquivos gerenciados anteriores.
+O checkout Git permanece na revisão baixada.
+
+## Remoção
+
+```bash
+sunday uninstall
+```
+
+Arquivos modificados depois da instalação são preservados.
+O `.env`, `config.toml` e banco permanecem disponíveis.
+
+# Desenvolvimento
+
+Execute todas as verificações:
+
+```bash
+python3 -m compileall -q sunday scripts tests
+python3 -m unittest discover -s tests -v
+python3 scripts/check_model_routing.py
+python3 scripts/sync_versions.py
+```
+
+A integração contínua testa:
+
+- Python 3.11 e 3.13;
+- Ubuntu;
+- contrato WSL;
+- Windows x64;
+- macOS;
+- manifests;
+- roteamento;
+- estado e retomada;
+- Friday e GitHub falsos;
+- segurança e redaction.
+
+Releases geram ZIP portátil, checksum SHA-256 e atestado de proveniência.
+
+# Limitações conhecidas
+
+- O Friday atual não expõe `get_current_user`.
+- Contas sem tarefas precisam do e-mail fallback.
+- Antigravity precisa expor um comando headless compatível.
+- Integrações GitLab, Azure DevOps, Jira e Linear ainda não existem.
+- Uma operação interrompida exige reconciliação antes de repetir.
+
+# Licença
+
+MIT. Consulte `LICENSE`.

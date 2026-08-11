@@ -1,14 +1,14 @@
 {
   "$schema": "https://json.schemastore.org/claude-code-plugin-manifest.json",
-  "name": "agentic-dev-flow",
-  "displayName": "Agentic Dev Flow",
-  "version": "0.2.2",
-  "description": "Portable development orchestration with Friday and automatic remote model routing.",
-  "author": {"name": "Local developer"},
+  "name": "sunday-agentic-flow",
+  "displayName": "Sunday",
+  "version": "1.0.0",
+  "description": "Sunday deterministic development orchestration across AI coding hosts.",
+  "author": {"name": "Gabriel Fonseca"},
   "skills": "./skills/",
   "mcpServers": {
     "friday": {
-      "command": "agentic-friday-mcp"
+      "command": "sunday-friday-mcp"
     }
   }
 }

@@ -1,6 +1,6 @@
 interface:
   display_name: "Otimizar colaboração entre modelos"
   short_description: "Roteia tarefas entre modelos remotos do host"
-  default_prompt: "Escolha automaticamente modelos remotos adequados para cada etapa."
+  default_prompt: "Use $optimize-model-collaboration para avaliar as rotas Sunday."
 policy:
   allow_implicit_invocation: true

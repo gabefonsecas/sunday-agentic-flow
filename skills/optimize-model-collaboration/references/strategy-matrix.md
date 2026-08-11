@@ -54,12 +54,12 @@ Never use self-reported confidence as the only routing signal.
 - Gemini CLI: fast uses Gemini Flash; balanced and deep use Gemini Pro.
 - Antigravity: fast uses `flash`; balanced and deep use `pro`.
 
-Use `agentic_task_analyst` on Codex for discovery.
-Use `agentic_implementation_worker` for bounded coding.
-Use `agentic_implementation_verifier` after implementation.
-Use `agentic_branch_reviewer` before delivery completion.
+Use `sunday_task_analyst` on Codex for discovery.
+Use `sunday_implementation_worker` for bounded coding.
+Use `sunday_implementation_verifier` after implementation.
+Use `sunday_branch_reviewer` before delivery completion.
 
 Other hosts expose the same names with hyphens.
-Invoke them automatically when their descriptions match.
+Sunday invokes them through its headless runtime.
 
 If a configured model is unavailable, inherit the session model.
