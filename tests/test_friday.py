@@ -1,8 +1,46 @@
 import os
+import json
+from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
+import threading
 import unittest
 from unittest.mock import MagicMock, patch
 
 from sunday.adapters.friday import FridayAdapter, FridayMCPClient, resolve_user_from_tasks
+from sunday.errors import AuthenticationError, TransientIntegrationError
+from sunday.friday_proxy import handle_message
+
+
+class FridayHandler(BaseHTTPRequestHandler):
+    failures = 0
+    posts = 0
+
+    def log_message(self, *_args):
+        pass
+
+    def do_GET(self):
+        endpoint = f"http://127.0.0.1:{self.server.server_port}/messages"
+        body = f"event: endpoint\ndata: {endpoint}\n\n".encode()
+        self.send_response(200)
+        self.send_header("Content-Type", "text/event-stream")
+        self.send_header("Content-Length", str(len(body)))
+        self.end_headers()
+        self.wfile.write(body)
+
+    def do_POST(self):
+        type(self).posts += 1
+        if type(self).failures:
+            type(self).failures -= 1
+            self.send_response(503)
+            self.end_headers()
+            return
+        length = int(self.headers.get("Content-Length", "0"))
+        request = json.loads(self.rfile.read(length))
+        body = json.dumps({"jsonrpc": "2.0", "id": request["id"], "result": {"ok": True}}).encode()
+        self.send_response(200)
+        self.send_header("Content-Type", "application/json")
+        self.send_header("Content-Length", str(len(body)))
+        self.end_headers()
+        self.wfile.write(body)
 
 
 class FakeClient:
@@ -37,6 +75,68 @@ class FakeClient:
 
 
 class FridayAdapterTests(unittest.TestCase):
+    def test_real_sse_transport_retries_and_closes(self):
+        FridayHandler.failures = 1
+        FridayHandler.posts = 0
+        server = ThreadingHTTPServer(("127.0.0.1", 0), FridayHandler)
+        thread = threading.Thread(target=server.serve_forever, daemon=True)
+        thread.start()
+        client = FridayMCPClient(
+            f"http://127.0.0.1:{server.server_port}/sse",
+            timeout=2, retries=2, backoff=0,
+        )
+        try:
+            self.assertEqual(client.request("ping", retry_safe=True), {"ok": True})
+            self.assertEqual(client.retry_count, 1)
+            self.assertEqual(FridayHandler.posts, 2)
+        finally:
+            client.close()
+            server.shutdown()
+            server.server_close()
+            thread.join(timeout=2)
+
+    def test_authentication_failure_is_not_retried(self):
+        response = MagicMock()
+        response.__enter__.side_effect = __import__("urllib.error").error.HTTPError(
+            "https://friday.test", 401, "unauthorized", {}, None
+        )
+        client = FridayMCPClient("https://friday.test/sse", timeout=0.1, retries=2, backoff=0)
+        client.endpoint = "https://friday.test/messages"
+        client.ready.set()
+        client.thread = MagicMock()
+        client.thread.is_alive.return_value = True
+        with patch("sunday.adapters.friday.urllib.request.urlopen", return_value=response):
+            with self.assertRaises(AuthenticationError):
+                client.request("ping")
+
+    def test_mutating_tool_is_never_retried_after_uncertain_response(self):
+        client = FridayMCPClient(
+            "https://friday.test/sse", timeout=0.1, retries=3, backoff=0,
+        )
+        applied = []
+
+        def lost_response(method, params):
+            applied.append((method, params["name"]))
+            raise TransientIntegrationError("response lost after apply")
+
+        with patch.object(client, "_request_once", side_effect=lost_response):
+            with self.assertRaises(TransientIntegrationError):
+                client.tool("create_item", {"name": "once"})
+        self.assertEqual(applied, [("tools/call", "create_item")])
+        self.assertEqual(client.retry_count, 0)
+
+    def test_stdio_proxy_marks_mutating_tool_call_as_not_retry_safe(self):
+        client = MagicMock()
+        client.request.return_value = {"content": []}
+        handle_message(
+            {
+                "id": 1, "method": "tools/call",
+                "params": {"name": "create_item", "arguments": {}},
+            },
+            client,
+        )
+        self.assertFalse(client.request.call_args.kwargs["retry_safe"])
+
     def test_empty_notification_response_is_supported(self):
         client = FridayMCPClient("https://friday.test/sse")
         client.endpoint = "https://friday.test/message"
@@ -77,6 +177,11 @@ class FridayAdapterTests(unittest.TestCase):
         self.assertEqual(result["member_id"], 73)
         update = [call for call in client.calls if call[0] == "update_cell_value"][-1]
         self.assertEqual(update[1]["value"], "73")
+
+    def test_claim_reconciliation_uses_token_identity(self):
+        result = FridayAdapter(FakeClient(73)).reconcile_claim("42", 1, 2, "owner")
+        self.assertTrue(result["reconciled"])
+        self.assertEqual(result["member_id"], 73)
 
     def test_status_update_resolves_column_by_id(self):
         client = FakeClient()

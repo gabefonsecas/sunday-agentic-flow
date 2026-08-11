@@ -7,7 +7,10 @@ from typing import Mapping
 
 from .paths import config_dir
 
-SECRET_KEYS = ("TOKEN", "KEY", "SECRET", "PASSWORD", "CREDENTIAL")
+SECRET_KEYS = (
+    "TOKEN", "KEY", "SECRET", "PASSWORD", "CREDENTIAL",
+    "AUTHORIZATION", "COOKIE", "SESSION",
+)
 QUERY_SECRET = re.compile(r"([?&](?:api_token|token|key)=)[^&\s]+", re.IGNORECASE)
 
 

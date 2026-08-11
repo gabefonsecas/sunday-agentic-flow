@@ -78,3 +78,13 @@ class VisualRouteTests(unittest.TestCase):
     def test_cli_exposes_routes_and_visual_status(self):
         self.assertEqual(parser().parse_args(["routes", "abc"]).command, "routes")
         self.assertTrue(parser().parse_args(["status", "abc", "--visual"]).visual)
+        self.assertTrue(parser().parse_args(["doctor", "--models"]).models)
+        self.assertTrue(parser().parse_args(["update", "--check"]).check)
+        self.assertEqual(
+            parser().parse_args(["update", "--rollback", "1.0.0"]).rollback,
+            "1.0.0",
+        )
+        self.assertEqual(
+            parser().parse_args(["cleanup", "--run-id", "abc"]).run_id,
+            "abc",
+        )
