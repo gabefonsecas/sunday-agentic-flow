@@ -2,10 +2,27 @@ import tempfile
 from pathlib import Path
 import unittest
 
+from sunday.adapters.base import ExecutionResult
 from sunday.config import ProjectConfig, Settings
 from sunday.engine import SundayEngine
 from sunday.state import RunStore
-from tests.fakes import FakeGit, FakeHosts, FakeTasks
+from tests.fakes import FakeGit, FakeHost, FakeHosts, FakeTasks
+
+
+class RetryHost(FakeHost):
+    def execute_agent(self, route, prompt, repository, read_only):
+        self.routes.append(route)
+        discovery_attempts = [item for item in self.routes if item.phase == "discovery"]
+        if route.phase == "discovery" and len(discovery_attempts) == 1:
+            return ExecutionResult(
+                False, "SUNDAY_RESULT: {\"success\": false, \"summary\": \"retry\"}",
+                route.model, route.model, True, 0.1, 0.2, {"fake": True},
+            )
+        stories = ""
+        if route.phase == "discovery":
+            stories = 'SUNDAY_STORIES: [{"title":"[dev] outcome","description":"complete story"}]\n'
+        output = stories + 'SUNDAY_RESULT: {"success": true, "confidence": 0.95, "summary": "passed"}'
+        return ExecutionResult(True, output, route.model, route.model, True, 0.1, 0.95, {"fake": True})
 
 
 class EngineTests(unittest.TestCase):
@@ -59,6 +76,22 @@ class EngineTests(unittest.TestCase):
         self.engine.start("42", self.project, "codex")
         models = [route.model for route in self.hosts.host.routes]
         self.assertGreaterEqual(len(set(models)), 2)
+
+    def test_failed_route_escalates_model_and_emits_progress(self):
+        hosts = FakeHosts()
+        hosts.host = RetryHost()
+        progress = []
+        engine = SundayEngine(
+            Settings(projects={"demo": self.project}), self.store,
+            self.tasks, self.git, hosts, progress=lambda kind, payload: progress.append((kind, payload)),
+        )
+        run = engine.start("42", self.project, "codex")
+        discovery = [route for route in hosts.host.routes if route.phase == "discovery"]
+        self.assertEqual(run.state, "completed")
+        self.assertEqual([route.model for route in discovery], ["gpt-5.6-luna", "gpt-5.6-terra"])
+        self.assertEqual([kind for kind, _ in progress[:4]], [
+            "route.started", "route.completed", "route.started", "route.completed",
+        ])
 
     def test_completed_task_cannot_publish_again(self):
         first = self.engine.start("42", self.project, "codex")

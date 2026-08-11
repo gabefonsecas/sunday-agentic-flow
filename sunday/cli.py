@@ -2,6 +2,7 @@
 
 import argparse
 import json
+import os
 from pathlib import Path
 import sys
 import time
@@ -12,6 +13,7 @@ from sunday.engine import SundayEngine
 from sunday.installation import install, uninstall, update
 from sunday.reporting import write_report
 from sunday.state import RunStore
+from sunday.visual import live_route_line, render_routes
 
 
 def _json(value: object) -> None:
@@ -52,6 +54,12 @@ def parser() -> argparse.ArgumentParser:
     fail.add_argument("--reason", required=True)
     status = commands.add_parser("status", help="Show recent or selected runs")
     status.add_argument("run_id", nargs="?")
+    status.add_argument("--visual", action="store_true", help="Show the model route timeline")
+    routes = commands.add_parser("routes", help="Show visual model transitions")
+    routes.add_argument("run_id", nargs="?")
+    routes.add_argument(
+        "--format", choices=("terminal", "markdown", "mermaid", "json"), default="terminal"
+    )
     review = commands.add_parser("review", help="Run an independent branch or PR review")
     review.add_argument("reference")
     review.add_argument("--project")
@@ -74,6 +82,11 @@ def _run_dict(run) -> dict:
         "created_at": run.created_at, "updated_at": run.updated_at,
         "pull_request": run.metadata.get("pull_request"),
     }
+
+
+def _progress(kind: str, payload: dict) -> None:
+    if not os.environ.get("SUNDAY_NO_PROGRESS"):
+        print(live_route_line(kind, payload), file=sys.stderr, flush=True)
 
 
 def main(argv: list[str] | None = None) -> None:
@@ -106,8 +119,26 @@ def main(argv: list[str] | None = None) -> None:
         return
     settings = load_settings(args.config)
     store = RunStore()
-    engine = SundayEngine(settings, store=store)
+    engine = SundayEngine(settings, store=store, progress=_progress)
+    if args.command == "routes":
+        run_id = args.run_id
+        if not run_id:
+            recent = store.list(limit=1)
+            if not recent:
+                raise RuntimeError("No Sunday runs found")
+            run_id = recent[0].id
+        print(render_routes(store, run_id, args.format), end="")
+        return
     if args.command == "status":
+        if args.visual:
+            run_id = args.run_id
+            if not run_id:
+                recent = store.list(limit=1)
+                if not recent:
+                    raise RuntimeError("No Sunday runs found")
+                run_id = recent[0].id
+            print(render_routes(store, run_id), end="")
+            return
         _json(_run_dict(store.get(args.run_id)) if args.run_id else [_run_dict(run) for run in store.list()])
         return
     if args.command == "fail":

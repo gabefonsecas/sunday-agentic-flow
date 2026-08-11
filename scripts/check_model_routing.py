@@ -3,6 +3,7 @@
 
 import json
 from pathlib import Path
+import sys
 
 try:
     import tomllib
@@ -10,6 +11,9 @@ except ModuleNotFoundError:  # Python 3.10
     import tomli as tomllib
 
 ROOT = Path(__file__).resolve().parent.parent
+sys.path.insert(0, str(ROOT))
+
+from sunday.routing import MODEL_POOLS
 PHASES = {
     "discovery": "sunday-task-analyst",
     "implementation": "sunday-implementation-worker",
@@ -46,8 +50,19 @@ valid = True
 for host in ("codex", "claude", "gemini", "antigravity"):
     profiles = {phase: load_profile(host, stem) for phase, stem in PHASES.items()}
     distinct = {(profile["model"], profile["effort"]) for profile in profiles.values()}
-    host_valid = all(profile["model"] for profile in profiles.values()) and len(distinct) >= 2
-    matrix[host] = {"valid": host_valid, "phases": profiles}
+    pools = {
+        phase: [
+            {"model": candidate.model, "effort": candidate.effort, "tier": candidate.tier}
+            for candidate in MODEL_POOLS[host][phase]
+        ]
+        for phase in PHASES
+    }
+    pool_valid = all(
+        len(candidates) >= 3 and len({candidate["model"] for candidate in candidates}) >= 2
+        for candidates in pools.values()
+    )
+    host_valid = all(profile["model"] for profile in profiles.values()) and len(distinct) >= 2 and pool_valid
+    matrix[host] = {"valid": host_valid, "defaults": profiles, "pools": pools}
     valid = valid and host_valid
 
 print(json.dumps({"valid": valid, "hosts": matrix}, indent=2, ensure_ascii=False))
