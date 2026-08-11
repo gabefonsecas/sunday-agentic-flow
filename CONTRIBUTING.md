@@ -1,6 +1,6 @@
 # Contributing
 
-Use Python 3.11 or newer.
+Use Python 3.10 or newer. Python 3.10 uses the `tomli` compatibility dependency.
 Create branches from `main`.
 Keep the runtime dependency-free when practical.
 Never embed provider credentials or user IDs.
