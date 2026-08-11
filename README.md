@@ -144,8 +144,16 @@ Confirme o Python:
 python3 --version
 ```
 
-Sunday exige Python 3.11 ou superior.
-Ubuntu 24.04 já atende esse requisito.
+Sunday exige Python 3.10 ou superior.
+Ubuntu 22.04 usa Python 3.10 e precisa do backport TOML:
+
+```bash
+if ! python3 -c 'import tomllib' 2>/dev/null; then
+  sudo apt install -y python3-tomli
+fi
+```
+
+Ubuntu 24.04 e Python 3.11+ já incluem `tomllib`.
 
 Configure sua identidade Git:
 
@@ -729,7 +737,7 @@ python3 scripts/sync_versions.py
 
 A integração contínua testa:
 
-- Python 3.11 e 3.13;
+- Python 3.10, 3.11 e 3.13;
 - Ubuntu;
 - contrato WSL;
 - Windows x64;
