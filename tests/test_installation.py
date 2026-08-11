@@ -180,7 +180,10 @@ class InstallationTests(unittest.TestCase):
 
         self.assertTrue(rolled_back["rolled_back"])
         self.assertEqual(rolled_back["version"], "1.0.0")
-        self.assertIn("releases/1.0.0", rolled_back["release"])
+        self.assertEqual(
+            Path(rolled_back["release"]),
+            self.install_root / "releases" / "1.0.0",
+        )
 
     def test_update_rejects_bad_checksum_before_staging(self):
         first = self.make_source("1.0.0")
