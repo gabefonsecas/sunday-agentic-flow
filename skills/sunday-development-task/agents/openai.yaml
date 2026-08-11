@@ -1,0 +1,6 @@
+interface:
+  display_name: "Executar tarefa com Sunday"
+  short_description: "Conduz uma tarefa até PR auditável"
+  default_prompt: "Use $sunday-development-task para executar esta tarefa Friday."
+policy:
+  allow_implicit_invocation: true

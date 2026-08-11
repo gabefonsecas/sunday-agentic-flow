@@ -1,0 +1,33 @@
+name: Release
+
+on:
+  push:
+    tags: ["v*"]
+
+permissions:
+  contents: write
+  id-token: write
+  attestations: write
+
+jobs:
+  release:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v7
+      - uses: actions/setup-python@v7
+        with:
+          python-version: "3.11"
+      - run: python -m unittest discover -s tests -v
+      - run: python scripts/sync_versions.py
+      - name: Build portable archive
+        run: |
+          git archive --format=zip --prefix=sunday-agentic-flow/ --output=sunday-agentic-flow-${GITHUB_REF_NAME}.zip HEAD
+          sha256sum sunday-agentic-flow-${GITHUB_REF_NAME}.zip > sunday-agentic-flow-${GITHUB_REF_NAME}.zip.sha256
+      - uses: actions/attest-build-provenance@v4
+        with:
+          subject-path: sunday-agentic-flow-${{ github.ref_name }}.zip
+      - uses: softprops/action-gh-release@v3
+        with:
+          files: |
+            sunday-agentic-flow-${{ github.ref_name }}.zip
+            sunday-agentic-flow-${{ github.ref_name }}.zip.sha256

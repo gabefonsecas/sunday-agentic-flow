@@ -1,16 +1,26 @@
 {
-  "name": "agentic-dev-flow",
-  "version": "0.1.0+codex.20260810192611",
-  "description": "Portable development orchestration with Friday and automatic remote model routing.",
+  "name": "sunday-agentic-flow",
+  "version": "1.0.0+codex.20260810210920",
+  "description": "Sunday deterministic development orchestration across AI coding hosts.",
   "author": {
-    "name": "Local developer"
+    "name": "Gabriel Fonseca",
+    "url": "https://github.com/gabefonsecas"
   },
+  "homepage": "https://github.com/gabefonsecas/sunday-agentic-flow",
+  "repository": "https://github.com/gabefonsecas/sunday-agentic-flow",
+  "license": "MIT",
+  "keywords": [
+    "development",
+    "orchestration",
+    "friday",
+    "multi-agent"
+  ],
   "skills": "./skills/",
   "interface": {
-    "displayName": "Agentic Dev Flow",
+    "displayName": "Sunday",
     "shortDescription": "Orchestrate development from request through reviewed PR.",
     "longDescription": "Turn vague requests into Friday stories, implement them under repository rules, route specialist work across host-provided models, publish pull requests, and review branches.",
-    "developerName": "Local developer",
+    "developerName": "Gabriel Fonseca",
     "category": "Developer Tools",
     "capabilities": [
       "Read",
@@ -19,14 +29,16 @@
       "Multi-agent"
     ],
     "defaultPrompt": [
-      "Conduza esta tarefa at\u00e9 uma PR vinculada ao Friday.",
-      "Revise esta branch e publique os achados no Friday.",
-      "Implemente esta demanda seguindo as regras do projeto."
+      "Sunday, crie uma tarefa no Friday para este projeto.",
+      "Sunday, crie esta tarefa no Friday e j\u00e1 comece a executar.",
+      "Execute esta tarefa Friday com Sunday.",
+      "Revise esta branch usando Sunday.",
+      "Mostre o estado desta execu\u00e7\u00e3o Sunday."
     ]
   },
   "mcpServers": {
     "friday": {
-      "command": "agentic-friday-mcp"
+      "command": "sunday-friday-mcp"
     }
   }
 }

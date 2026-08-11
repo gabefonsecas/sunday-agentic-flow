@@ -1,4 +1,4 @@
 interface:
   display_name: "Executar história gerenciada"
   short_description: "Implementa uma história com rastreabilidade no Friday"
-  default_prompt: "Implemente esta história, valide tudo e atualize seu estado no Friday."
+  default_prompt: "Use $execute-managed-story para implementar esta história."

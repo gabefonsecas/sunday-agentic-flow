@@ -1,5 +1,5 @@
 {
   "$schema": "https://antigravity.google/schemas/v1/plugin.json",
-  "name": "agentic-dev-flow",
-  "description": "Portable development orchestration with Friday and automatic remote model routing."
+  "name": "sunday-agentic-flow",
+  "description": "Sunday deterministic development orchestration across AI coding hosts."
 }
