@@ -25,12 +25,10 @@ jobs:
       - run: python scripts/sync_versions.py
 
   wsl-contract:
-    runs-on: ubuntu-latest
-    env:
-      WSL_DISTRO_NAME: Ubuntu
+    runs-on: windows-2025
+    timeout-minutes: 20
     steps:
       - uses: actions/checkout@v7
-      - uses: actions/setup-python@v7
-        with:
-          python-version: "3.11"
-      - run: python -m unittest tests.test_cross_platform -v
+      - name: Run the complete suite inside WSL 2
+        shell: pwsh
+        run: ./scripts/test_wsl.ps1
