@@ -168,6 +168,8 @@ class CommandHostAdapter(HostAdapter):
     def _same_model(requested: str, observed: str) -> bool:
         requested = requested.casefold()
         observed = observed.casefold()
+        if requested == "auto":
+            return observed.startswith("gemini")
         return requested == observed or requested in observed or observed in requested
 
 

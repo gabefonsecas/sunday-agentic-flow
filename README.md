@@ -73,17 +73,58 @@ O banco SQLite fica fora dos projetos:
 
 No Windows nativo ele usa `%LOCALAPPDATA%\sunday`.
 
-## Roteamento de modelos
+## Roteamento e transições visuais
 
 Sunday inicia uma execução headless separada para cada fase.
 O modelo é passado explicitamente ao CLI do host.
 
-| Fase | Codex | Claude | Gemini | Antigravity |
-| --- | --- | --- | --- | --- |
-| Descoberta | `gpt-5.6-terra` | `haiku` | `flash` | `flash` |
-| Implementação | `gpt-5.6-sol` | `sonnet` | `pro` | `pro` |
-| Verificação | `gpt-5.6-terra` | `sonnet` | `pro` | `pro` |
-| Review | `gpt-5.6-sol` | `opus` | `pro` | `pro` |
+| Host | Econômico | Rápido | Intermediário | Avançado | Profundo |
+| --- | --- | --- | --- | --- | --- |
+| Codex | GPT-5.4 mini | GPT-5.4 | GPT-5.6 Terra | GPT-5.5 | GPT-5.6 Sol |
+| Claude | Haiku 4.5 | Sonnet 4.6 | - | Sonnet 5 | Opus 5 |
+| Gemini | Flash-Lite | Flash | Gemini 3 Flash | Auto | Pro |
+| Antigravity | Flash-Lite | Flash | Gemini 3 Flash | Auto | Pro |
+
+Sunday classifica a tarefa antes de selecionar modelos:
+
+- tarefa simples começa no nível econômico;
+- descoberta normal começa no nível rápido;
+- implementação normal começa no nível equilibrado;
+- tarefa complexa começa no nível avançado;
+- risco alto começa no nível avançado;
+- falhas avançam até o nível profundo.
+
+Git, GitHub e Friday usam adapters determinísticos.
+Criar branch, commit, push e PR não consome modelo.
+
+Durante a execução, Sunday imprime cada troca:
+
+```text
+[>>] Discovery: gpt-5.4-mini  pool=1/5  reason=simple complexity
+[!!] Discovery: gpt-5.4-mini  duration=8.2s  accepted=False
+[>>] Discovery: gpt-5.4  pool=2/5  reason=retry escalation
+[OK] Discovery: gpt-5.4  duration=14.1s  accepted=True
+[API] github:pull_request: deterministic adapter, no model
+```
+
+Consulte o painel da execução mais recente:
+
+```bash
+sunday routes
+```
+
+Consulte uma execução específica:
+
+```bash
+sunday routes RUN_ID
+sunday status RUN_ID --visual
+sunday routes RUN_ID --format markdown
+sunday routes RUN_ID --format mermaid
+sunday routes RUN_ID --format json
+```
+
+O formato Mermaid permite renderização em clientes compatíveis.
+No Codex, peça: `Sunday, mostre as transições dos modelos`.
 
 Cada execução registra:
 
@@ -101,6 +142,10 @@ O modo entre fornecedores é opcional.
 Não existe modelo local neste projeto.
 Não existe Ollama, MLX ou mistura de pesos.
 Interpolação significa roteamento, escalonamento e consenso.
+
+Referências oficiais: [modelos OpenAI](https://developers.openai.com/api/docs/models),
+[modelos Claude](https://platform.claude.com/docs/en/about-claude/models/overview) e
+[seleção do Gemini CLI](https://geminicli.com/docs/cli/model/).
 
 # Instalação completa no WSL 2
 
@@ -389,7 +434,7 @@ cross_provider = false
 strict_model_verification = true
 watcher_interval = 60
 minimum_confidence = 0.70
-max_phase_attempts = 2
+max_phase_attempts = 3
 
 [projects.mustafar]
 repository = "~/src/smb-products"
@@ -670,6 +715,12 @@ sunday report RUN_ID --output ~/relatorios/sunday.md
 O relatório contém timeline e route ledger.
 Também inclui recomendações de roteamento.
 Sunday nunca altera a política automaticamente.
+
+Para enxergar somente modelos e escalonamentos:
+
+```bash
+sunday routes RUN_ID
+```
 
 # Modo entre fornecedores
 

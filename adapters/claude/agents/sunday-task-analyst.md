@@ -1,7 +1,7 @@
 ---
 name: sunday-task-analyst
 description: Use proactively for every development request to map repository rules, architecture, Friday context, and acceptance criteria before editing.
-model: haiku
+model: claude-sonnet-4-6
 effort: medium
 disallowedTools: Write, Edit
 ---

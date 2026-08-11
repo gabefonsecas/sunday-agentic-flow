@@ -9,7 +9,7 @@ from sunday.adapters.base import ExecutionResult, GitProviderAdapter, HostAdapte
 from sunday.adapters.github import GitHubAdapter, branch_slug
 from sunday.adapters.hosts import HostRegistry
 from sunday.config import ProjectConfig, Settings
-from sunday.routing import ModelRouter
+from sunday.routing import ModelRouter, classify_complexity
 from sunday.state import Run, RunStore
 
 HIGH_RISK = re.compile(
@@ -73,12 +73,14 @@ class SundayEngine:
         tasks: TaskManagerAdapter | None = None,
         git: GitProviderAdapter | None = None,
         hosts: HostRegistry | None = None,
+        progress: Callable[[str, dict], None] | None = None,
     ):
         self.settings = settings
         self.store = store or RunStore()
         self.tasks = tasks
         self.git = git or GitHubAdapter()
         self.hosts = hosts or HostRegistry()
+        self.progress = progress
 
     def start(self, task_ref: str, project: ProjectConfig, host_name: str = "auto") -> Run:
         previous = self.store.latest_for_task(task_ref)
@@ -260,11 +262,30 @@ class SundayEngine:
             adapters.extend(self.hosts.alternatives(run.host))
         last_error = "phase did not execute"
         attempts = max(1, self.settings.max_phase_attempts)
+        risk_text = f"{run.metadata.get('title', '')}\n{run.metadata.get('description', '')}"
+        risk = "high" if HIGH_RISK.search(risk_text) else "normal"
+        complexity = classify_complexity(risk_text)
         for attempt in range(1, attempts + 1):
             adapter = adapters[min(attempt - 1, len(adapters) - 1)]
-            route = ModelRouter(adapter.name).route(phase, attempt)
-            self.store.event(run.id, "route.started", phase, asdict(route))
-            result = adapter.execute_agent(route, prompt, project.repository, read_only)
+            route = ModelRouter(adapter.name).route(phase, attempt, risk, complexity)
+            started_payload = asdict(route)
+            self.store.event(run.id, "route.started", phase, started_payload)
+            if self.progress:
+                self.progress("route.started", started_payload)
+            try:
+                result = adapter.execute_agent(route, prompt, project.repository, read_only)
+            except Exception as exc:
+                payload = {
+                    **asdict(route), "success": False, "accepted": False,
+                    "observed_model": None, "model_verified": False,
+                    "duration_seconds": 0, "confidence": None,
+                    "evidence": {"exception": type(exc).__name__}, "error": str(exc),
+                }
+                self.store.event(run.id, "route.completed", phase, payload)
+                if self.progress:
+                    self.progress("route.completed", payload)
+                last_error = str(exc)
+                continue
             signal = sunday_result(result.output)
             confidence = signal.get("confidence", result.confidence)
             verified = adapter.verify_model_used(route, result)
@@ -280,6 +301,8 @@ class SundayEngine:
                 "evidence": result.evidence or {}, "signal": signal,
             }
             self.store.event(run.id, "route.completed", phase, payload)
+            if self.progress:
+                self.progress("route.completed", payload)
             if accepted:
                 return result
             last_error = str(signal.get("summary") or result.output[-1000:])
@@ -295,7 +318,10 @@ class SundayEngine:
         result = action()
         payload = result if isinstance(result, dict) else {"result": result}
         self.store.save_effect(run.id, key, "completed", payload)
-        self.store.event(run.id, "effect.completed", run.state, {"key": key, "result": payload})
+        event = {"effect": key, "result": payload, "execution": "deterministic", "model": None}
+        self.store.event(run.id, "effect.completed", run.state, event)
+        if self.progress:
+            self.progress("effect.completed", event)
         return payload
 
     def _sync_friday(self, run: Run, project: ProjectConfig, state: str) -> None:

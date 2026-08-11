@@ -38,7 +38,7 @@ class Settings:
     strict_model_verification: bool = True
     watcher_interval: int = 60
     minimum_confidence: float = 0.7
-    max_phase_attempts: int = 2
+    max_phase_attempts: int = 3
     projects: dict[str, ProjectConfig] = field(default_factory=dict)
 
     def project_for(self, name: str | None, cwd: Path | None = None) -> ProjectConfig:
@@ -115,7 +115,7 @@ def load_settings(path: Path | None = None) -> Settings:
         strict_model_verification=bool(runtime.get("strict_model_verification", True)),
         watcher_interval=int(runtime.get("watcher_interval", 60)),
         minimum_confidence=float(runtime.get("minimum_confidence", 0.7)),
-        max_phase_attempts=int(runtime.get("max_phase_attempts", 2)),
+        max_phase_attempts=int(runtime.get("max_phase_attempts", 3)),
         projects=projects,
     )
 
@@ -128,7 +128,7 @@ cross_provider = false
 strict_model_verification = true
 watcher_interval = 60
 minimum_confidence = 0.70
-max_phase_attempts = 2
+max_phase_attempts = 3
 
 [projects.example]
 repository = "~/src/example"
