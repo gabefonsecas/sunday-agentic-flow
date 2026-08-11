@@ -1,7 +1,7 @@
 ---
 name: sunday-implementation-worker
 description: Use for bounded implementation and focused tests after requirements, repository rules, and story boundaries are established.
-model: sonnet
+model: claude-sonnet-5
 effort: high
 ---
 

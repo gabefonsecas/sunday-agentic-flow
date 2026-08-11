@@ -78,24 +78,33 @@ No Windows nativo ele usa `%LOCALAPPDATA%\sunday`.
 Sunday inicia uma execução headless separada para cada fase.
 O modelo é passado explicitamente ao CLI do host.
 
-| Fase | Codex | Claude | Gemini | Antigravity |
-| --- | --- | --- | --- | --- |
-| Descoberta | Luna → Terra → Sol | Haiku → Sonnet → Opus | Flash-Lite → Flash → Auto | Flash-Lite → Flash → Auto |
-| Implementação | Terra → Sol high → Sol xhigh | Haiku → Sonnet → Opus | Flash → Auto → Pro | Flash → Auto → Pro |
-| Verificação | Luna → Terra → Sol | Haiku → Sonnet → Opus | Flash → Auto → Pro | Flash → Auto → Pro |
-| Review | Terra → Sol xhigh → Sol max | Haiku → Sonnet → Opus | Auto → Pro → Gemini 3 Pro | Auto → Pro → Gemini 3 Pro |
+| Host | Econômico | Rápido | Intermediário | Avançado | Profundo |
+| --- | --- | --- | --- | --- | --- |
+| Codex | GPT-5.4 mini | GPT-5.4 | GPT-5.6 Terra | GPT-5.5 | GPT-5.6 Sol |
+| Claude | Haiku 4.5 | Sonnet 4.6 | - | Sonnet 5 | Opus 5 |
+| Gemini | Flash-Lite | Flash | Gemini 3 Flash | Auto | Pro |
+| Antigravity | Flash-Lite | Flash | Gemini 3 Flash | Auto | Pro |
 
-O primeiro modelo é o custo inicial da fase.
-Falhas ou baixa confiança avançam pelo pool.
-Risco alto começa num nível mais forte.
+Sunday classifica a tarefa antes de selecionar modelos:
+
+- tarefa simples começa no nível econômico;
+- descoberta normal começa no nível rápido;
+- implementação normal começa no nível equilibrado;
+- tarefa complexa começa no nível avançado;
+- risco alto começa no nível avançado;
+- falhas avançam até o nível profundo.
+
+Git, GitHub e Friday usam adapters determinísticos.
+Criar branch, commit, push e PR não consome modelo.
 
 Durante a execução, Sunday imprime cada troca:
 
 ```text
-[>>] Discovery: gpt-5.6-luna  pool=1/3  reason=phase default
-[!!] Discovery: gpt-5.6-luna  duration=8.2s  accepted=False
-[>>] Discovery: gpt-5.6-terra  pool=2/3  reason=retry escalation
-[OK] Discovery: gpt-5.6-terra  duration=14.1s  accepted=True
+[>>] Discovery: gpt-5.4-mini  pool=1/5  reason=simple complexity
+[!!] Discovery: gpt-5.4-mini  duration=8.2s  accepted=False
+[>>] Discovery: gpt-5.4  pool=2/5  reason=retry escalation
+[OK] Discovery: gpt-5.4  duration=14.1s  accepted=True
+[API] github:pull_request: deterministic adapter, no model
 ```
 
 Consulte o painel da execução mais recente:
@@ -133,6 +142,10 @@ O modo entre fornecedores é opcional.
 Não existe modelo local neste projeto.
 Não existe Ollama, MLX ou mistura de pesos.
 Interpolação significa roteamento, escalonamento e consenso.
+
+Referências oficiais: [modelos OpenAI](https://developers.openai.com/api/docs/models),
+[modelos Claude](https://platform.claude.com/docs/en/about-claude/models/overview) e
+[seleção do Gemini CLI](https://geminicli.com/docs/cli/model/).
 
 # Instalação completa no WSL 2
 

@@ -88,10 +88,26 @@ class EngineTests(unittest.TestCase):
         run = engine.start("42", self.project, "codex")
         discovery = [route for route in hosts.host.routes if route.phase == "discovery"]
         self.assertEqual(run.state, "completed")
-        self.assertEqual([route.model for route in discovery], ["gpt-5.6-luna", "gpt-5.6-terra"])
-        self.assertEqual([kind for kind, _ in progress[:4]], [
+        self.assertEqual([route.model for route in discovery], ["gpt-5.4", "gpt-5.6-terra"])
+        route_progress = [(kind, payload) for kind, payload in progress if kind.startswith("route.")]
+        self.assertEqual([kind for kind, _ in route_progress[:4]], [
             "route.started", "route.completed", "route.started", "route.completed",
         ])
+
+    def test_git_and_github_effects_never_use_models(self):
+        progress = []
+        engine = SundayEngine(
+            Settings(projects={"demo": self.project}), self.store,
+            self.tasks, self.git, self.hosts,
+            progress=lambda kind, payload: progress.append((kind, payload)),
+        )
+        engine.start("42", self.project, "codex")
+        operations = [
+            payload for kind, payload in progress
+            if kind == "effect.completed" and payload["effect"].startswith(("git:", "github:"))
+        ]
+        self.assertTrue(operations)
+        self.assertTrue(all(operation["model"] is None for operation in operations))
 
     def test_completed_task_cannot_publish_again(self):
         first = self.engine.start("42", self.project, "codex")

@@ -60,6 +60,11 @@ def route_data(store: RunStore, run_id: str) -> dict:
         "host": run.host,
         "state": run.state,
         "phases": rows,
+        "deterministic_operations": [
+            event["payload"]["effect"] for event in events
+            if event["kind"] == "effect.completed"
+            and str(event["payload"].get("effect", "")).startswith(("git:", "github:"))
+        ],
     }
 
 
@@ -75,6 +80,10 @@ def terminal_routes(data: dict) -> str:
         lines.append(f"{markers[phase['status']]} {phase['label']}")
         lines.append(f"     used: {used}")
         lines.append(f"     pool: {pool}")
+    if data["deterministic_operations"]:
+        lines.extend(["", "[API] GitHub and Git operations"])
+        lines.append("      " + ", ".join(data["deterministic_operations"]))
+        lines.append("      deterministic adapters, no model")
     return "\n".join(lines)
 
 
@@ -89,6 +98,9 @@ def markdown_routes(data: dict) -> str:
         used = " → ".join(f"`{model}`" for model in phase["used"]) or "Not started"
         pool = " → ".join(f"`{model}`" for model in phase["pool"])
         lines.append(f"| {phase['status']} | {phase['label']} | {used} | {pool} |")
+    if data["deterministic_operations"]:
+        operations = ", ".join(f"`{key}`" for key in data["deterministic_operations"])
+        lines.extend(["", f"GitHub and Git: {operations}. Deterministic adapters, no model."])
     return "\n".join(lines) + "\n"
 
 
@@ -118,6 +130,8 @@ def render_routes(store: RunStore, run_id: str, format_name: str = "terminal") -
 
 
 def live_route_line(kind: str, payload: dict) -> str:
+    if kind == "effect.completed":
+        return f"[API] {payload.get('effect', 'operation')}: deterministic adapter, no model"
     phase = PHASE_LABELS.get(str(payload.get("phase")), str(payload.get("phase", "route")))
     model = payload.get("observed_model") or payload.get("model", "unknown")
     position = f"{payload.get('pool_position', '?')}/{payload.get('pool_size', '?')}"
