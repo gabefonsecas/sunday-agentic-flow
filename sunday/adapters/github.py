@@ -14,7 +14,16 @@ def run(command: list[str], repository: Path, check: bool = True) -> subprocess.
         stdout=subprocess.PIPE, stderr=subprocess.PIPE,
     )
     if check and result.returncode:
-        raise RuntimeError(f"Command failed: {' '.join(command)}\n{result.stderr.strip()}")
+        stderr = result.stderr.strip()
+        if "Resource protected by organization SAML enforcement" in stderr or "SAML" in stderr:
+            sso_match = re.search(r"https://github\.com/orgs/[^\s]+", stderr)
+            sso_url = sso_match.group(0) if sso_match else ""
+            msg = f"Command failed: {' '.join(command)}\nGitHub CLI requires SAML SSO authorization for this organization.\n"
+            if sso_url:
+                msg += f"Authorize in browser: {sso_url}\n"
+            msg += "After authorizing, resume with: sunday resume <run_id>"
+            raise RuntimeError(msg)
+        raise RuntimeError(f"Command failed: {' '.join(command)}\n{stderr}")
     return result
 
 
