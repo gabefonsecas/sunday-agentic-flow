@@ -339,13 +339,16 @@ class FridayAdapter(TaskManagerAdapter):
 
     def set_status(self, item_id: int, board_id: int, column: str, value: str) -> dict:
         columns = self.client.tool("list_columns", {"board_id": board_id})
-        matches = [
-            item for item in columns
-            if item.get("type") == "status" and (
-                str(item.get("id")) == str(column)
+        status_cols = [item for item in columns if item.get("type") == "status"]
+        matches = []
+        if column:
+            matches = [
+                item for item in status_cols
+                if str(item.get("id")) == str(column)
                 or str(item.get("name", "")).casefold() == str(column).casefold()
-            )
-        ]
+            ]
+        if not matches and status_cols:
+            matches = [status_cols[0]]
         if len(matches) != 1:
             raise RuntimeError("Configure one valid Friday status column")
         return self.client.tool(

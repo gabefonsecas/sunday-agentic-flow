@@ -577,7 +577,7 @@ pr_column = ""
 people_column = "200"
 status_column = "201"
 ai_column = "298"
-publish_stories = true
+publish_stories = false
 
 [projects.mustafar.states]
 discovery = "none"
@@ -601,13 +601,14 @@ Significado dos campos:
 - `default_project`: mapeamento Friday padrão para repositórios ainda não cadastrados;
 - `workspace_id`: workspace Friday;
 - `board_id`: board da tarefa;
-- `intake_group_id`: grupo que receberá histórias derivadas;
+- `intake_group_id`: grupo que receberá novas tarefas do `sunday create`;
 - `ready_label`: etiqueta exigida pelo watcher;
 - `base_branch`: `auto`, `main` ou `homolog`;
 - `pr_column`: coluna de link da pull request;
 - `people_column`: coluna de responsável;
 - `status_column`: coluna de status atualizada durante a execução;
 - `ai_column`: checkbox usado somente para identificar trabalho realizado pelo Sunday;
+- `publish_stories`: `false` por padrão. Quando desativado, Sunday executa o desenvolvimento dentro do próprio card original, registrando comentários e atualizando o status sem criar tarefas apartadas. Quando `true`, cria sub-tarefas no Friday;
 - `states`: mapeamento opcional das fases para opções da coluna de status.
 
 Quando `status_column` está configurada, os valores de `states` são IDs das opções de status.

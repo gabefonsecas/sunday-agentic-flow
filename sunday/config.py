@@ -24,7 +24,7 @@ class ProjectConfig:
     pr_column: str = ""
     people_column: str = ""
     status_column: str = ""
-    publish_stories: bool = True
+    publish_stories: bool = False
 
 
 @dataclass(slots=True)
@@ -93,7 +93,7 @@ def _project(name: str, data: dict) -> ProjectConfig:
         pr_column=data.get("pr_column", ""),
         people_column=data.get("people_column", ""),
         status_column=data.get("status_column", ""),
-        publish_stories=bool(data.get("publish_stories", True)),
+        publish_stories=bool(data.get("publish_stories", False)),
     )
 
 
@@ -149,5 +149,5 @@ base_branch = "auto"
 pr_column = "Pull Request"
 people_column = "Responsável"
 status_column = ""
-publish_stories = true
+publish_stories = false
 '''

@@ -307,6 +307,20 @@ class SundayEngine:
                     ),
                     intent={"marker": marker.strip()},
                 ))
+        elif run.metadata.get("task_id") and run.metadata.get("stories"):
+            stories = run.metadata.get("stories", [])
+            stories_md = "\n\n".join(
+                f"#### {story.get('title', 'História')}\n{story.get('description', '')}"
+                for story in stories
+            )
+            comment_text = (
+                f"### [Sunday:{run.id}] Plano de Desenvolvimento\n\n"
+                f"{stories_md}"
+            )
+            self._effect(
+                run, "friday:comment_stories",
+                lambda: self._tasks().comment(int(run.metadata["task_id"]), comment_text),
+            )
         self.store.update_metadata(run.id, {"published_stories": published})
         risk_text = f"{run.metadata['title']}\n{run.metadata['description']}"
         if HIGH_RISK.search(risk_text) and not run.metadata.get("high_risk_approved"):
@@ -628,31 +642,62 @@ class SundayEngine:
             adapter.cancel()
 
     def _sync_friday(self, run: Run, project: ProjectConfig, state: str) -> None:
+        if not run.metadata.get("task_id"):
+            return
+        task_id = int(run.metadata["task_id"])
         target = project.states.get(state)
-        if target is None or target == "" or not run.metadata.get("task_id"):
-            return
-        if project.status_column:
-            self._effect(
-                run, f"friday:status:{state}",
-                lambda: self._tasks().set_status(
-                    int(run.metadata["task_id"]), int(project.board_id),
-                    project.status_column, str(target),
-                ),
-                reconcile=self._friday_reconciler(
-                    "reconcile_cell", run.task_ref, int(project.board_id),
-                    project.status_column, str(target),
-                ),
-                intent={"column": project.status_column, "value": str(target)},
-            )
-            return
-        self._effect(
-            run, f"friday:transition:{state}",
-            lambda: self._tasks().transition(int(run.metadata["task_id"]), int(target)),
-            reconcile=self._friday_reconciler(
-                "reconcile_transition", run.task_ref, int(project.board_id), int(target),
-            ),
-            intent={"group_id": int(target)},
-        )
+
+        # 1. Update status column or group transition
+        if target is not None and str(target) != "":
+            status_done = False
+            if project.status_column or project.board_id:
+                try:
+                    self._effect(
+                        run, f"friday:status:{state}",
+                        lambda: self._tasks().set_status(
+                            task_id, int(project.board_id),
+                            project.status_column, str(target),
+                        ),
+                        reconcile=self._friday_reconciler(
+                            "reconcile_cell", run.task_ref, int(project.board_id),
+                            project.status_column, str(target),
+                        ),
+                        intent={"column": project.status_column, "value": str(target)},
+                    )
+                    status_done = True
+                except Exception:
+                    pass
+            if not status_done and str(target).isdigit():
+                try:
+                    self._effect(
+                        run, f"friday:transition:{state}",
+                        lambda: self._tasks().transition(task_id, int(target)),
+                        reconcile=self._friday_reconciler(
+                            "reconcile_transition", run.task_ref, int(project.board_id), int(target),
+                        ),
+                        intent={"group_id": int(target)},
+                    )
+                except Exception:
+                    pass
+
+        # 2. Add progress comment on the card
+        phase_messages = {
+            "discovery": "Análise e planejamento de tarefas iniciados.",
+            "implementation": "Desenvolvimento e alterações de código em andamento.",
+            "verification": "Implementação concluída. Executando testes e verificações.",
+            "review": "Verificações aprovadas. Revisão final do código.",
+            "completed": "Fluxo concluído com sucesso.",
+            "failed": "Execução interrompida devido a falha ou bloqueio.",
+        }
+        if state in phase_messages:
+            try:
+                msg = f"[Sunday:{run.id}] **{phase_messages[state]}** (Fase: `{state}`)"
+                self._effect(
+                    run, f"friday:comment_phase:{state}",
+                    lambda: self._tasks().comment(task_id, msg),
+                )
+            except Exception:
+                pass
 
     def _sync_failed_safely(self, run: Run, project: ProjectConfig) -> None:
         try:
