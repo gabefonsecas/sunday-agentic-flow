@@ -38,7 +38,7 @@ class Settings:
     max_phase_attempts: int = 3
     lease_ttl_seconds: int = 300
     lease_heartbeat_seconds: int = 60
-    completed_worktree_retention_days: int = 7
+    completed_worktree_retention_days: int = 0
     projects: dict[str, ProjectConfig] = field(default_factory=dict)
 
     def project_for(self, name: str | None, cwd: Path | None = None) -> ProjectConfig:
@@ -119,7 +119,7 @@ def load_settings(path: Path | None = None) -> Settings:
         lease_ttl_seconds=max(30, int(runtime.get("lease_ttl_seconds", 300))),
         lease_heartbeat_seconds=max(10, int(runtime.get("lease_heartbeat_seconds", 60))),
         completed_worktree_retention_days=max(
-            0, int(runtime.get("completed_worktree_retention_days", 7))
+            0, int(runtime.get("completed_worktree_retention_days", 0))
         ),
         projects=projects,
     )
@@ -136,7 +136,7 @@ minimum_confidence = 0.70
 max_phase_attempts = 3
 lease_ttl_seconds = 300
 lease_heartbeat_seconds = 60
-completed_worktree_retention_days = 7
+completed_worktree_retention_days = 0
 
 [projects.example]
 repository = "~/src/example"

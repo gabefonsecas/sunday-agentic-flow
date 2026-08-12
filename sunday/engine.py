@@ -1,7 +1,6 @@
 """Deterministic Sunday workflow engine."""
 
 from dataclasses import asdict
-from datetime import datetime, timedelta, timezone
 import json
 from pathlib import Path
 import re
@@ -11,9 +10,9 @@ from sunday.adapters.base import ExecutionResult, GitProviderAdapter, HostAdapte
 from sunday.adapters.github import GitHubAdapter, branch_slug
 from sunday.adapters.hosts import HostRegistry
 from sunday.config import ProjectConfig, Settings
+from sunday.checkout import checkout_lease
 from sunday.routing import ModelRouter, classify_complexity
 from sunday.state import LeaseLostError, Run, RunStore
-from sunday.worktrees import WorktreeManager
 
 HIGH_RISK = re.compile(
     r"\b(drop|truncate|delete\s+all|production|produ[cç][aã]o|deploy|secret|segredo|"
@@ -126,15 +125,15 @@ class SundayEngine:
         git: GitProviderAdapter | None = None,
         hosts: HostRegistry | None = None,
         progress: Callable[[str, dict], None] | None = None,
-        worktrees: WorktreeManager | None = None,
+        worktrees: object | None = None,
     ):
+        del worktrees  # Compatibility only. Sunday now uses the repository checkout.
         self.settings = settings
         self.store = store or RunStore()
         self.tasks = tasks
         self.git = git or GitHubAdapter()
         self.hosts = hosts or HostRegistry()
         self.progress = progress
-        self.worktrees = worktrees or WorktreeManager(self.store.path.parent / "worktrees")
         self._model_probes: dict[tuple[str, str, str], dict] = {}
         self._active_host: HostAdapter | None = None
 
@@ -179,11 +178,14 @@ class SundayEngine:
         if initial.state in {"completed", "failed", "paused"}:
             return initial
         try:
-            with self.store.heartbeat_lease(run_id, self._cancel_active_host):
+            with checkout_lease(project.repository), self.store.heartbeat_lease(
+                run_id, self._cancel_active_host
+            ):
                 while True:
                     run = self.store.get(run_id)
                     if run.state in {"completed", "failed", "paused"}:
                         return run
+                    self._require_expected_checkout(run, project)
                     handler = getattr(self, f"_phase_{run.state}")
                     handler(run, project)
         except LeaseLostError:
@@ -225,14 +227,16 @@ class SundayEngine:
         })
         base = self._base_branch(project, run)
         branch = branch_slug(run.task_ref, run.metadata["title"], run.id)
-        worktree = self._effect(
+        branch_result = self._effect(
             run,
-            "git:create_worktree",
-            lambda: self.worktrees.create(project.repository, run.id, branch, base),
-            reconcile=lambda _: self.worktrees.inspect(project.repository, run.id, branch),
+            "git:create_branch",
+            lambda: self.git.create_branch(project.repository, branch, base),
+            reconcile=self._git_reconciler(
+                "inspect_branch", project.repository, branch, base,
+            ),
             intent={"branch": branch, "base": base},
         )
-        run = self.store.set_worktree(run.id, worktree["path"])
+        run = self.store.set_worktree(run.id, project.repository)
         claim = self._effect(
             run, "friday:claim",
             lambda: self._tasks().claim_task(
@@ -259,7 +263,8 @@ class SundayEngine:
             )
         run = self.store.update_metadata(run.id, {
             "claim": claim, "ai_mark": ai_mark, "base_branch": base,
-            "branch": branch, "branch_result": worktree,
+            "branch": branch, "branch_result": branch_result,
+            "workspace_mode": "checkout",
         })
         self._sync_friday(run, project, "discovery")
         self.store.transition(run.id, "discovery")
@@ -338,25 +343,24 @@ class SundayEngine:
 
     def _phase_pull_request(self, run: Run, project: ProjectConfig) -> None:
         if run.metadata.get("review_only"):
-            retention_days = max(0, self.settings.completed_worktree_retention_days)
-            if retention_days and not run.metadata.get("retained_until"):
-                self.store.update_metadata(run.id, {
-                    "retained_until": (
-                        datetime.now(timezone.utc) + timedelta(days=retention_days)
-                    ).isoformat(),
-                })
-            elif not retention_days:
-                cleanup = self._effect(
-                    run, "git:remove_review_worktree",
-                    lambda: self.worktrees.remove(project.repository, run.id),
-                    reconcile=lambda _: (
-                        {"path": run.worktree_path, "removed": True, "reconciled": True}
-                        if self.worktrees.inspect(project.repository, run.id) is None
-                        else None
+            checkout = run.metadata.get("review_checkout", {})
+            if checkout.get("original_head"):
+                restored = self._effect(
+                    run, "git:restore_review_checkout",
+                    lambda: self.git.restore_checkout(
+                        project.repository, checkout.get("original_branch"),
+                        checkout["original_head"],
                     ),
-                    intent={"path": run.worktree_path},
+                    reconcile=self._git_reconciler(
+                        "inspect_restored_checkout", project.repository,
+                        checkout.get("original_branch"), checkout["original_head"],
+                    ),
+                    intent={
+                        "branch": checkout.get("original_branch"),
+                        "revision": checkout["original_head"],
+                    },
                 )
-                self.store.update_metadata(run.id, {"worktree_cleanup": cleanup})
+                self.store.update_metadata(run.id, {"checkout_restore": restored})
             self.store.transition(run.id, "completed")
             return
         workspace = self._workspace(run, project)
@@ -419,35 +423,6 @@ class SundayEngine:
         })
         self._sync_friday(run, project, "pull_request")
         self._sync_friday(run, project, "completed")
-        retention_days = max(0, self.settings.completed_worktree_retention_days)
-        if retention_days:
-            retained_until = (
-                datetime.now(timezone.utc) + timedelta(days=retention_days)
-            ).isoformat()
-            self.store.update_metadata(run.id, {
-                "retained_until": retained_until,
-                "worktree_cleanup": {
-                    "path": str(workspace), "removed": False,
-                    "retained_until": retained_until,
-                },
-            })
-        else:
-            cleanup = self._effect(
-                run,
-                "git:remove_worktree",
-                lambda: self.worktrees.remove(
-                    project.repository, run.id, run.metadata["branch"]
-                ),
-                reconcile=lambda _: (
-                    {"path": str(workspace), "removed": True, "reconciled": True}
-                    if self.worktrees.inspect(
-                        project.repository, run.id, run.metadata["branch"]
-                    ) is None
-                    else None
-                ),
-                intent={"path": str(workspace), "branch": run.metadata["branch"]},
-            )
-            self.store.update_metadata(run.id, {"worktree_cleanup": cleanup})
         self.store.transition(run.id, "completed")
 
     def _routed(
@@ -703,6 +678,36 @@ class SundayEngine:
     def _workspace(run: Run, project: ProjectConfig) -> Path:
         return Path(run.worktree_path) if run.worktree_path else project.repository
 
+    def _require_expected_checkout(self, run: Run, project: ProjectConfig) -> None:
+        if run.metadata.get("workspace_mode") != "checkout":
+            return
+        if run.metadata.get("review_only"):
+            target = run.metadata.get("review_target", {}).get("commit")
+            restoring = self.store.effect(run.id, "git:restore_review_checkout")
+            checkout = run.metadata.get("review_checkout", {})
+            if restoring and restoring["status"] == "started" and checkout.get(
+                "original_head"
+            ):
+                restored = self.git.inspect_restored_checkout(
+                    project.repository, checkout.get("original_branch"),
+                    checkout["original_head"],
+                )
+                if restored:
+                    return
+            if target and not self.git.inspect_revision(project.repository, target):
+                raise RuntimeError(
+                    "Repository checkout changed during Sunday review. Resume from the "
+                    "expected review commit."
+                )
+            return
+        branch = run.metadata.get("branch")
+        if branch and not self.git.inspect_branch(
+            project.repository, branch, run.metadata.get("base_branch")
+        ):
+            raise RuntimeError(
+                f"Repository checkout changed. Sunday expects branch {branch}."
+            )
+
     def _friday_reconciler(
         self, method_name: str, *args: object,
     ) -> Callable[[dict], dict | None] | None:
@@ -766,7 +771,7 @@ Do not edit files. Fail when acceptance evidence is insufficient.
             "immutable review target. Use those OIDs explicitly. Do not infer "
             "main, homolog, or a moving remote ref."
             if run.metadata.get("review_only")
-            else "Review the worktree branch against its configured merge base."
+            else "Review the active Sunday branch against its configured merge base."
         )
         return common + f"""
 {review_scope}
@@ -832,7 +837,7 @@ Do not edit files. Fail on any unresolved P0, P1, or P2 finding.
         resolver = getattr(self.git, "resolve_review_reference", None)
         if not callable(resolver):
             raise RuntimeError("Git provider cannot resolve review references")
-        pending = self.store.effect(run.id, "git:create_review_worktree")
+        pending = self.store.effect(run.id, "git:checkout_review_revision")
         resolved = run.metadata.get("review_target_pending") or (
             pending["payload"].get("resolved")
             if pending and pending["status"] != "completed"
@@ -855,28 +860,44 @@ Do not edit files. Fail on any unresolved P0, P1, or P2 finding.
                 run.id, {"review_target_pending": resolved}
             )
 
-        def reconcile_review_worktree(_intent: dict) -> dict | None:
-            inspected = self.worktrees.inspect(project.repository, run.id)
-            if inspected and inspected.get("head") != resolved["commit"]:
-                raise RuntimeError("Sunday review worktree changed revision")
-            return inspected
+        repository_state = self.git.inspect_repository(project.repository)
+        original_branch = repository_state.get("branch") or None
+        original_head = self.git.inspect_head(project.repository)
 
-        worktree = self._effect(
+        def reconcile_checkout(intent: dict) -> dict | None:
+            inspected = self.git.inspect_revision(
+                project.repository, resolved["commit"]
+            )
+            if not inspected:
+                return None
+            return {
+                **inspected,
+                "original_branch": intent.get("original_branch"),
+                "original_head": intent.get("original_head"),
+            }
+
+        checkout = self._effect(
             run,
-            "git:create_review_worktree",
-            lambda: self.worktrees.create_detached(
-                project.repository, run.id, resolved["commit"]
+            "git:checkout_review_revision",
+            lambda: self.git.checkout_revision(
+                project.repository, resolved["commit"]
             ),
-            reconcile=reconcile_review_worktree,
-            intent={"revision": resolved["commit"], "resolved": resolved},
+            reconcile=reconcile_checkout,
+            intent={
+                "revision": resolved["commit"], "resolved": resolved,
+                "original_branch": original_branch,
+                "original_head": original_head,
+            },
         )
-        inspected = self.worktrees.inspect(project.repository, run.id)
+        inspected = self.git.inspect_revision(project.repository, resolved["commit"])
         if not inspected or inspected.get("head") != resolved["commit"]:
-            raise RuntimeError("Sunday review worktree changed revision")
-        self.store.set_worktree(run.id, worktree["path"])
+            raise RuntimeError("Sunday review checkout changed revision")
+        self.store.set_worktree(run.id, project.repository)
         self.store.update_metadata(run.id, {
             "review_target": resolved,
             "base_branch": resolved.get("baseRefName"),
             "branch": resolved.get("headRefName"),
+            "review_checkout": checkout,
+            "workspace_mode": "checkout",
         })
         self.store.transition(run.id, "discovery")

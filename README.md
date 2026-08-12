@@ -565,7 +565,7 @@ minimum_confidence = 0.70
 max_phase_attempts = 3
 lease_ttl_seconds = 300
 lease_heartbeat_seconds = 60
-completed_worktree_retention_days = 7
+completed_worktree_retention_days = 0 # limpeza de worktrees legados
 
 [projects.mustafar]
 repository = "~/src/smb-products"
@@ -939,11 +939,20 @@ Ele não chama nem altera o comando `python3` do sistema.
 Se `gh attestation --help` falhar, atualize o GitHub CLI primeiro.
 Sunday requer GitHub CLI 2.49.0 ou superior para verificar proveniência.
 
-## Worktrees e limpeza
+## Branch e checkout de trabalho
 
-Cada execução trabalha num worktree global exclusivo.
-Mudanças existentes no checkout original ficam intocadas.
-Execuções pausadas ou falhas preservam seus arquivos.
+Sunday cria uma branch `sunday/...` no próprio repositório aberto.
+Todo trabalho acontece diretamente nesse checkout.
+Nenhum worktree e nenhuma pasta paralela são criados.
+O repositório precisa estar limpo antes da execução.
+Sunday recusa iniciar quando encontra alterações locais.
+Somente uma execução pode controlar o checkout por vez.
+
+Reviews fazem checkout destacado do commit exato.
+Ao terminar, Sunday restaura a branch original.
+
+O comando abaixo existe apenas para instalações antigas.
+Ele remove worktrees legados registrados antes desta versão.
 
 ```bash
 sunday cleanup
@@ -951,7 +960,7 @@ sunday cleanup --older-than 14
 sunday cleanup --run-id RUN_ID
 ```
 
-Sunday remove somente worktrees registrados e limpos.
+Sunday remove somente worktrees legados registrados e limpos.
 
 ## Remoção
 
