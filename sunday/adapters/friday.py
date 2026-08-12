@@ -351,9 +351,29 @@ class FridayAdapter(TaskManagerAdapter):
             matches = [status_cols[0]]
         if len(matches) != 1:
             raise RuntimeError("Configure one valid Friday status column")
+        target_col = matches[0]
+        target_val = str(value)
+        options = (target_col.get("settings") or {}).get("options", [])
+        if options:
+            val_lower = str(value).casefold()
+            matched_opt = next(
+                (opt for opt in options if str(opt.get("id")).casefold() == val_lower or str(opt.get("label")).casefold() == val_lower),
+                None,
+            )
+            if not matched_opt:
+                if val_lower in {"working", "development", "dev", "discovery", "implementation", "verification"}:
+                    matched_opt = next((opt for opt in options if opt.get("status_type") == "working" or "dev" in str(opt.get("label")).casefold()), None)
+                elif val_lower in {"review", "pull_request", "pr"}:
+                    matched_opt = next((opt for opt in options if "review" in str(opt.get("label")).casefold() or "pr" in str(opt.get("label")).casefold()), None)
+                elif val_lower in {"done", "completed", "complete"}:
+                    matched_opt = next((opt for opt in options if opt.get("is_done") or "done" in str(opt.get("label")).casefold() or "pronto" in str(opt.get("label")).casefold()), None)
+                elif val_lower in {"stuck", "blocked", "failed", "paused"}:
+                    matched_opt = next((opt for opt in options if opt.get("status_type") == "stuck" or "block" in str(opt.get("label")).casefold() or "imped" in str(opt.get("label")).casefold()), None)
+            if matched_opt:
+                target_val = str(matched_opt.get("id") or matched_opt.get("label"))
         return self.client.tool(
             "update_cell_value",
-            {"item_id": item_id, "column_id": matches[0]["id"], "value": str(value)},
+            {"item_id": item_id, "column_id": target_col["id"], "value": target_val},
         )
 
     def mark_ai(self, item_id: int, board_id: int, column: str) -> dict:
@@ -386,7 +406,7 @@ class FridayAdapter(TaskManagerAdapter):
             return self.client.tool(
                 "update_cell_value", {"item_id": item_id, "column_id": candidates[0]["id"], "value": url}
             )
-        return self.comment(item_id, f"Pull request: {url}")
+        return self.comment(item_id, f"### Pull Request Criada\n\nLink da PR: {url}")
 
     @staticmethod
     def _assignee_ids(task: dict) -> set[object]:

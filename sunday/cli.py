@@ -66,6 +66,7 @@ def parser() -> argparse.ArgumentParser:
     status = commands.add_parser("status", help="Show recent or selected runs")
     status.add_argument("run_id", nargs="?")
     status.add_argument("--visual", action="store_true", help="Show the model route timeline")
+    status.add_argument("--json", action="store_true", help="Output raw JSON format")
     routes = commands.add_parser("routes", help="Show visual model transitions")
     routes.add_argument("run_id", nargs="?")
     routes.add_argument(
@@ -96,6 +97,93 @@ def _run_dict(run) -> dict:
         "created_at": run.created_at, "updated_at": run.updated_at,
         "pull_request": run.metadata.get("pull_request"),
     }
+
+
+def _format_run_status(store: RunStore, run_id: str) -> str:
+    run = store.get(run_id)
+    events = store.events(run_id)
+    meta = run.metadata or {}
+    title = meta.get("title") or f"Task {run.task_ref}"
+    task_id = meta.get("task_id") or run.task_ref
+    branch = meta.get("branch") or "N/A"
+    pr = meta.get("pull_request") or {}
+    pr_url = pr.get("url") if isinstance(pr, dict) else None
+
+    last_error = None
+    for event in reversed(events):
+        p = event.get("payload") or {}
+        if isinstance(p, dict):
+            err = p.get("error") or p.get("reason")
+            if err:
+                last_error = str(err)
+                break
+
+    state_str = run.state.upper()
+    if run.resume_state and run.state == "paused":
+        state_str += f" (Resume target: {run.resume_state})"
+
+    lines = [
+        "=" * 70,
+        f"  SUNDAY RUN STATUS: {run.id[:8]} ({run.id})",
+        "=" * 70,
+        f"  Task:          #{task_id} - {title}",
+        f"  Project:       {run.project or 'N/A'}",
+        f"  Host:          {run.host or 'N/A'}",
+        f"  State:         {state_str}",
+        f"  Branch:        {branch}",
+        f"  Pull Request:  {pr_url or 'Not created'}",
+        f"  Created At:    {run.created_at}",
+        f"  Updated At:    {run.updated_at}",
+    ]
+
+    if last_error:
+        lines.extend([
+            "-" * 70,
+            "  [!] Blocked / Pause Reason:",
+            f"      {last_error}",
+        ])
+        if "SAML" in last_error or "Resource protected" in last_error or "gh auth" in last_error:
+            lines.extend([
+                "",
+                "  [->] Action Required:",
+                "      1. Authorize SAML SSO in your browser using the link above.",
+                f"      2. Resume execution: sunday resume {run.id[:8]}",
+            ])
+        elif run.state == "paused":
+            lines.extend([
+                "",
+                "  [->] Action Required:",
+                f"      Resume execution: sunday resume {run.id[:8]}",
+            ])
+
+    lines.extend(["=" * 70, ""])
+    return "\n".join(lines)
+
+
+def _format_runs_table(runs: list) -> str:
+    if not runs:
+        return "No Sunday runs found.\n"
+    lines = [
+        "=" * 85,
+        f"{'ID':<10} {'TASK':<8} {'PROJECT':<12} {'HOST':<8} {'STATE':<12} {'PR':<25}",
+        "=" * 85,
+    ]
+    for r in runs:
+        meta = r.metadata or {}
+        pr = meta.get("pull_request") or {}
+        pr_url = str(pr.get("url") if isinstance(pr, dict) and pr.get("url") else "-")
+        if len(pr_url) > 25:
+            pr_url = pr_url[:22] + "..."
+        r_id = str(r.id or "")[:8]
+        project_str = str(r.project or "-")
+        host_str = str(r.host or "-")
+        state_str = str(r.state or "-")
+        task_str = str(meta.get("task_id") or r.task_ref or "-")
+        lines.append(
+            f"{r_id:<10} {task_str:<8} {project_str:<12} {host_str:<8} {state_str:<12} {pr_url:<25}"
+        )
+    lines.extend(["=" * 85, ""])
+    return "\n".join(lines)
 
 
 def _progress(kind: str, payload: dict) -> None:
@@ -161,7 +249,12 @@ def main(argv: list[str] | None = None) -> None:
                 run_id = recent[0].id
             print(render_routes(store, run_id), end="")
             return
-        _json(_run_dict(store.get(args.run_id)) if args.run_id else [_run_dict(run) for run in store.list()])
+        if args.json:
+            _json(_run_dict(store.get(args.run_id)) if args.run_id else [_run_dict(run) for run in store.list()])
+        elif args.run_id:
+            print(_format_run_status(store, args.run_id))
+        else:
+            print(_format_runs_table(store.list()))
         return
     if args.command == "fail":
         run = store.get(args.run_id)
