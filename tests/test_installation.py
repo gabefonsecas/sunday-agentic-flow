@@ -3,6 +3,7 @@ import io
 import json
 import os
 from pathlib import Path
+import subprocess
 import tempfile
 import unittest
 from unittest.mock import patch
@@ -134,7 +135,9 @@ class InstallationTests(unittest.TestCase):
 
         result = installation.install(source, isolated=False)
 
-        release = self.home / ".local" / "share" / "sunday" / "releases" / "1.2.3"
+        release = (
+            self.home / ".local" / "share" / "sunday" / "releases" / "1.2.3"
+        ).resolve()
         manifest = json.loads(
             (release / "release-manifest.json").read_text(encoding="utf-8")
         )
@@ -142,7 +145,46 @@ class InstallationTests(unittest.TestCase):
         self.assertEqual(manifest["version"], "1.2.3")
         self.assertEqual(manifest["smoke_test"], "passed")
         self.assertFalse(manifest["runtime_isolated"])
+        self.assertGreaterEqual(
+            tuple(map(int, manifest["runtime_python"].split(".")[:2])),
+            (3, 11),
+        )
+        runtime = Path(manifest["runtime"])
+        expected_runtime = runtime if runtime.is_absolute() else release / runtime
+        self.assertEqual(Path(manifest["runtime_executable"]), expected_runtime)
         self.assertEqual(env.read_text(encoding="utf-8"), "FRIDAY_API_TOKEN=secret\n")
+
+    def test_posix_launcher_uses_absolute_bootstrap_interpreter(self):
+        if os.name == "nt":
+            self.skipTest("POSIX launcher contract")
+        result = installation.install()
+        launcher = self.home / ".local" / "bin" / "sunday"
+        content = launcher.read_text(encoding="utf-8")
+        runtime = Path(result["runtime"])
+        self.assertIn(f'exec "{runtime}"', content)
+        self.assertNotIn("env python3\n", content)
+
+    def test_posix_launcher_runs_outside_installation_directory(self):
+        if os.name == "nt":
+            self.skipTest("POSIX launcher contract")
+        installation.install()
+        launcher = self.home / ".local" / "bin" / "sunday"
+        result = subprocess.run(
+            [str(launcher), "--help"], cwd=self.home, text=True,
+            stdout=subprocess.PIPE, stderr=subprocess.PIPE,
+        )
+        self.assertEqual(result.returncode, 0, result.stderr)
+        self.assertIn("Deterministic agentic development orchestration", result.stdout)
+
+    def test_install_rejects_python_310_before_writing(self):
+        old_version = installation.sys.version_info
+        with patch.object(installation.sys, "version_info", (3, 10, 14)), patch.object(
+            installation.sys, "version", "3.10.14"
+        ):
+            with self.assertRaisesRegex(RuntimeError, "python3.11 scripts/install.py"):
+                installation.install()
+        self.assertEqual(installation.sys.version_info, old_version)
+        self.assertFalse((self.install_root / "active-release.json").exists())
 
     def test_update_downloads_verified_release_then_rollback_reactivates_previous(self):
         first = self.make_source("1.0.0")
@@ -182,7 +224,7 @@ class InstallationTests(unittest.TestCase):
         self.assertEqual(rolled_back["version"], "1.0.0")
         self.assertEqual(
             Path(rolled_back["release"]),
-            self.install_root / "releases" / "1.0.0",
+            (self.install_root / "releases" / "1.0.0").resolve(),
         )
 
     def test_update_rejects_bad_checksum_before_staging(self):
