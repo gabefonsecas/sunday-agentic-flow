@@ -180,17 +180,67 @@ Execute dentro do Ubuntu:
 ```bash
 sudo apt update
 sudo apt upgrade -y
-sudo apt install -y ca-certificates curl git jq python3 python3-venv python3-pip unzip build-essential gh
+sudo apt install -y ca-certificates curl wget git jq unzip build-essential
 ```
 
-Confirme o Python:
+### Instalar Python 3.11 sem alterar `python3`
+
+Sunday usa Python 3.11 explicitamente.
+O `python3` do sistema pode continuar apontando para Python 3.10.
+Não altere `update-alternatives` e não substitua o Python do Ubuntu.
+
+Instale o gerenciador `uv` e uma versão isolada do Python 3.11:
+
+```bash
+curl -LsSf https://astral.sh/uv/install.sh | sh
+export PATH="$HOME/.local/bin:$PATH"
+uv python install 3.11
+```
+
+Persista o diretório dos executáveis no shell:
+
+```bash
+grep -qxF 'export PATH="$HOME/.local/bin:$PATH"' ~/.bashrc || \
+  echo 'export PATH="$HOME/.local/bin:$PATH"' >> ~/.bashrc
+source ~/.bashrc
+```
+
+Confirme os dois comandos separadamente:
 
 ```bash
 python3 --version
+python3.11 --version
 ```
 
-Sunday exige Python 3.11 ou superior.
-Ubuntu 24.04 já fornece uma versão compatível.
+O primeiro pode mostrar `Python 3.10.x`.
+O segundo deve mostrar `Python 3.11.x`.
+O `uv` instala apenas o executável versionado por padrão.
+
+### Instalar GitHub CLI 2.49.0 ou superior
+
+Sunday usa `gh attestation verify` durante atualizações.
+Esse comando existe a partir do GitHub CLI 2.49.0.
+Use o repositório oficial, evitando versões antigas do Ubuntu:
+
+```bash
+sudo mkdir -p -m 755 /etc/apt/keyrings
+wget -qO- https://cli.github.com/packages/githubcli-archive-keyring.gpg \
+  | sudo tee /etc/apt/keyrings/githubcli-archive-keyring.gpg >/dev/null
+sudo chmod go+r /etc/apt/keyrings/githubcli-archive-keyring.gpg
+echo "deb [arch=$(dpkg --print-architecture) signed-by=/etc/apt/keyrings/githubcli-archive-keyring.gpg] https://cli.github.com/packages stable main" \
+  | sudo tee /etc/apt/sources.list.d/github-cli.list >/dev/null
+sudo apt update
+sudo apt install -y gh
+```
+
+Confirme a versão e o comando de proveniência:
+
+```bash
+gh --version
+gh attestation --help
+```
+
+`gh --version` deve mostrar 2.49.0 ou superior.
 
 Configure sua identidade Git:
 
@@ -341,7 +391,7 @@ Nunca coloque segredos no `config.toml`.
 
 ```bash
 cd ~/plugins/sunday-agentic-flow
-python3 scripts/install.py
+python3.11 scripts/install.py
 ```
 
 Garanta os comandos locais no `PATH`:
@@ -371,7 +421,91 @@ O instalador cria:
 O instalador usa backup e rollback automático.
 Ele nunca instala arquivos dentro dos projetos.
 O código ativo fica numa release imutável em `~/.local/share/sunday/releases`.
+Cada release usa sua própria `.venv` criada pelo Python 3.11.
+Os launchers gravam caminhos absolutos para esse runtime.
+Após instalar, nenhum comando Sunday depende do `python3` do sistema.
 O clone usado na instalação pode ser removido depois.
+
+## Instalação no Windows x64 nativo
+
+Abra o PowerShell comum. Não é necessário alterar o Python do sistema.
+
+Instale Python 3.11 e GitHub CLI pelo `winget`:
+
+```powershell
+winget install --id Python.Python.3.11 -e
+winget install --id GitHub.cli -e
+```
+
+Feche e reabra o PowerShell. Depois confirme:
+
+```powershell
+py -3.11 --version
+gh --version
+gh attestation --help
+```
+
+O GitHub CLI deve ser 2.49.0 ou superior.
+Autentique e clone o Sunday:
+
+```powershell
+gh auth login
+gh auth status
+mkdir "$HOME\plugins" -Force
+git clone https://github.com/gabefonsecas/sunday-agentic-flow.git "$HOME\plugins\sunday-agentic-flow"
+cd "$HOME\plugins\sunday-agentic-flow"
+py -3.11 scripts\install.py
+```
+
+Os comandos ficam em `%LOCALAPPDATA%\sunday\bin`.
+Adicione essa pasta ao `PATH` do usuário uma única vez:
+
+```powershell
+$SundayBin = "$env:LOCALAPPDATA\sunday\bin"
+$UserPath = [Environment]::GetEnvironmentVariable("Path", "User")
+if ($null -eq $UserPath) { $UserPath = "" }
+if (($UserPath -split ';') -notcontains $SundayBin) {
+  [Environment]::SetEnvironmentVariable(
+    "Path",
+    (($UserPath.TrimEnd(';') + ";" + $SundayBin).TrimStart(';')),
+    "User"
+  )
+}
+$env:Path = "$SundayBin;$env:Path"
+```
+
+```powershell
+sunday --help
+sunday doctor
+```
+
+## Instalação no macOS
+
+Instale as dependências pelo Homebrew:
+
+```bash
+brew install python@3.11 gh git
+python3.11 --version
+gh --version
+gh attestation --help
+```
+
+O GitHub CLI deve ser 2.49.0 ou superior.
+Autentique, clone e instale:
+
+```bash
+gh auth login
+gh auth status
+mkdir -p ~/plugins
+git clone https://github.com/gabefonsecas/sunday-agentic-flow.git ~/plugins/sunday-agentic-flow
+cd ~/plugins/sunday-agentic-flow
+python3.11 scripts/install.py
+grep -qxF 'export PATH="$HOME/.local/bin:$PATH"' ~/.zshrc || \
+  echo 'export PATH="$HOME/.local/bin:$PATH"' >> ~/.zshrc
+source ~/.zshrc
+sunday --help
+sunday doctor
+```
 
 ## 8. Configuração automática do Friday
 
@@ -799,6 +933,11 @@ Ele baixa o ZIP e valida checksum e proveniência.
 A nova versão passa por smoke test antes da ativação.
 Falhas mantêm a versão anterior ativa.
 O comando não depende do clone usado na instalação.
+O update continua usando o runtime Python 3.11 já instalado.
+Ele não chama nem altera o comando `python3` do sistema.
+
+Se `gh attestation --help` falhar, atualize o GitHub CLI primeiro.
+Sunday requer GitHub CLI 2.49.0 ou superior para verificar proveniência.
 
 ## Worktrees e limpeza
 
@@ -825,13 +964,16 @@ O `.env`, `config.toml` e banco permanecem disponíveis.
 
 # Desenvolvimento
 
+Os comandos abaixo são para WSL, Linux e macOS.
+No Windows nativo, substitua `python3.11` por `py -3.11`.
+
 Execute todas as verificações:
 
 ```bash
-python3 -m compileall -q sunday scripts tests
-python3 -m unittest discover -s tests -v
-python3 scripts/check_model_routing.py
-python3 scripts/sync_versions.py
+python3.11 -m compileall -q sunday scripts tests
+python3.11 -m unittest discover -s tests -v
+python3.11 scripts/check_model_routing.py
+python3.11 scripts/sync_versions.py
 ```
 
 A integração contínua testa:

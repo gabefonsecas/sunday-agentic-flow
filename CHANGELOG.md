@@ -2,6 +2,13 @@
 
 ## Unreleased
 
+## 1.0.3
+
+- Made Python 3.11 explicit across bootstrap scripts and WSL execution.
+- Recorded the runtime Python version and executable in release manifests.
+- Documented side-by-side Python 3.10 and 3.11 installation.
+- Documented GitHub CLI 2.49.0 or newer for provenance verification.
+
 ## 1.0.2
 
 - Fixed Codex JSONL parsing for escaped `SUNDAY_RESULT` and `SUNDAY_STORIES` payloads.

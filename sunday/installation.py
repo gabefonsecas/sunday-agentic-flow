@@ -30,6 +30,7 @@ GITHUB_REPOSITORY = "gabefonsecas/sunday-agentic-flow"
 GITHUB_API = "https://api.github.com"
 MAX_DOWNLOAD_BYTES = 256 * 1024 * 1024
 MAX_ARCHIVE_BYTES = 512 * 1024 * 1024
+MINIMUM_PYTHON = (3, 11)
 COPY_IGNORE = shutil.ignore_patterns(
     ".git", ".env", ".venv", "__pycache__", "*.pyc", "*.egg-info", "build", "dist"
 )
@@ -85,6 +86,14 @@ def _serialized_installation(function):
 
 def _now() -> str:
     return datetime.now(timezone.utc).isoformat()
+
+
+def _require_supported_python() -> None:
+    if sys.version_info < MINIMUM_PYTHON:
+        raise RuntimeError(
+            "Sunday requires Python 3.11 or newer. "
+            f"Found {sys.version.split()[0]}. Run: python3.11 scripts/install.py"
+        )
 
 
 def _remove_tree(path: Path) -> None:
@@ -181,11 +190,11 @@ def _link(source: Path, target: Path, prepare) -> None:
         target.symlink_to(source, target_is_directory=True)
 
 
-def _bootstrap(prepare) -> tuple[Path, Path]:
+def _bootstrap(prepare) -> Path:
     target = installation_dir() / "run-active.py"
     prepare(target)
     target.parent.mkdir(parents=True, exist_ok=True)
-    content = f"""#!/usr/bin/env python3
+    content = f"""#!/usr/bin/env python3.11
 import json
 import os
 from pathlib import Path
@@ -202,8 +211,7 @@ if script not in {{"sunday.py", "friday_mcp_proxy.py"}}:
 os.execv(str(runtime), [str(runtime), str(release / "scripts" / script), *sys.argv[2:]])
 """
     target.write_text(content, encoding="utf-8", newline="")
-    python = Path(getattr(sys, "_base_executable", None) or sys.executable)
-    return target, python
+    return target
 
 
 def _launcher(name: str, script: str, bootstrap: Path, python: Path, prepare) -> Path:
@@ -308,6 +316,7 @@ def _smoke_test(release: Path, python: Path) -> None:
 
 
 def _prepare_runtime(release: Path, isolated: bool) -> tuple[str, bool, str | None]:
+    _require_supported_python()
     if isolated:
         runtime = release / ".venv"
         try:
@@ -339,6 +348,8 @@ def _release_manifest(
     archive_sha256: str | None,
     fallback_reason: str | None,
 ) -> dict:
+    runtime_path = Path(runtime)
+    runtime_executable = runtime_path if runtime_path.is_absolute() else release / runtime_path
     return {
         "schema_version": 1,
         "plugin": PLUGIN_NAME,
@@ -348,6 +359,8 @@ def _release_manifest(
         "archive_sha256": archive_sha256,
         "installed_at": _now(),
         "runtime": runtime,
+        "runtime_python": sys.version.split()[0],
+        "runtime_executable": str(runtime_executable),
         "runtime_isolated": isolated,
         "runtime_fallback_reason": fallback_reason,
         "smoke_test": "passed",
@@ -403,16 +416,16 @@ def _activate_release(release: Path, manifest: dict) -> dict:
     active = _activation_record(release, manifest)
     with transaction() as prepare:
         _initialize_configuration(prepare)
-        bootstrap, bootstrap_python = _bootstrap(prepare)
+        bootstrap = _bootstrap(prepare)
         installed.append(bootstrap)
         installed.extend(
             [
-                _launcher("sunday", "sunday.py", bootstrap, bootstrap_python, prepare),
+                _launcher("sunday", "sunday.py", bootstrap, runtime, prepare),
                 _launcher(
                     "sunday-friday-mcp",
                     "friday_mcp_proxy.py",
                     bootstrap,
-                    bootstrap_python,
+                    runtime,
                     prepare,
                 ),
             ]
@@ -484,6 +497,7 @@ def install(
 
     ``development=True`` is the explicit checkout-linked fallback.
     """
+    _require_supported_python()
     source_path = Path(source or ROOT).expanduser().resolve()
     if not (source_path / "sunday").is_dir() or not (source_path / "scripts").is_dir():
         raise RuntimeError(f"Invalid Sunday source tree: {source_path}")

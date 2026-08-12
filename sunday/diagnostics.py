@@ -1,6 +1,7 @@
 """Installation and runtime health checks."""
 
 import os
+import re
 import shutil
 import subprocess
 import sys
@@ -13,6 +14,8 @@ from sunday.paths import database_path
 from sunday.security import env_path, load_env
 from sunday.routing import AGENTS, MODEL_POOLS
 
+MINIMUM_GH_VERSION = (2, 49, 0)
+
 
 def _command(command: list[str]) -> dict:
     executable = shutil.which(command[0])
@@ -22,6 +25,27 @@ def _command(command: list[str]) -> dict:
     return {
         "available": True, "path": executable, "healthy": result.returncode == 0,
         "output": (result.stdout or result.stderr).strip()[-1000:],
+    }
+
+
+def _github() -> dict:
+    authentication = _command(["gh", "auth", "status"])
+    version = _command(["gh", "--version"])
+    match = re.search(r"\bgh version (\d+)\.(\d+)\.(\d+)\b", version.get("output", ""))
+    discovered = tuple(map(int, match.groups())) if match else None
+    attestation = _command(["gh", "attestation", "--help"])
+    return {
+        **authentication,
+        "version": ".".join(map(str, discovered)) if discovered else None,
+        "minimum_version": ".".join(map(str, MINIMUM_GH_VERSION)),
+        "supported_version": bool(discovered and discovered >= MINIMUM_GH_VERSION),
+        "attestation": attestation,
+        "healthy": bool(
+            authentication["healthy"]
+            and discovered
+            and discovered >= MINIMUM_GH_VERSION
+            and attestation["healthy"]
+        ),
     }
 
 
@@ -81,7 +105,7 @@ def doctor(network: bool = False, models: bool = False) -> dict:
             "configured": bool(os.environ.get("FRIDAY_MCP_API_TOKEN") or os.environ.get("FRIDAY_MCP_URL")),
             "fallback_email": bool(os.environ.get("FRIDAY_FALLBACK_ASSIGNEE_EMAIL")),
         },
-        "github": _command(["gh", "auth", "status"]),
+        "github": _github(),
         "git": _command(["git", "--version"]),
         "hosts": hosts,
         "routing": {
@@ -114,6 +138,7 @@ def doctor(network: bool = False, models: bool = False) -> dict:
         result["model_verification"] = summary
     result["healthy"] = (
         result["sunday"]["supported_python"] and result["git"]["healthy"]
+        and result["github"]["healthy"]
         and any(host["healthy"] for host in hosts.values())
         and result["paths"]["config_exists"] and result["friday"]["configured"]
     )

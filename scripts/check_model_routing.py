@@ -1,4 +1,4 @@
-#!/usr/bin/env python3
+#!/usr/bin/env python3.11
 """Validate distinct remote-model profiles for every host adapter."""
 
 import json
