@@ -795,7 +795,10 @@ sunday update --rollback 1.0.0
 ```
 
 O update consulta a release oficial no GitHub.
-Ele baixa o ZIP e valida checksum e proveniência.
+Ele baixa o ZIP e sempre valida o checksum SHA-256.
+Quando o `gh` instalado suporta `attestation`, ele também valida a proveniência.
+Versões antigas do `gh` registram essa verificação como indisponível sem bloquear
+um arquivo cujo checksum foi confirmado. Falhas reais de atestado continuam bloqueando.
 A nova versão passa por smoke test antes da ativação.
 Falhas mantêm a versão anterior ativa.
 O comando não depende do clone usado na instalação.

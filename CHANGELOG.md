@@ -6,6 +6,7 @@
 
 - Fixed Codex JSONL parsing for escaped `SUNDAY_RESULT` and `SUNDAY_STORIES` payloads.
 - Accepted valid Sunday markers followed by host metadata without weakening malformed-output checks.
+- Allowed checksum-verified updates on GitHub CLI versions without the `attestation` command.
 
 ## 1.0.1
 

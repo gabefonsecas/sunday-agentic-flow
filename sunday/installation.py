@@ -726,10 +726,13 @@ def _extract_archive(archive: Path, destination: Path) -> Path:
     raise RuntimeError("Sunday release archive has an invalid layout")
 
 
-def _verify_provenance(archive: Path, repository: str) -> None:
+def _verify_provenance(archive: Path, repository: str) -> dict:
     executable = shutil.which("gh")
     if not executable:
-        raise RuntimeError("GitHub CLI is required to verify release provenance")
+        return {
+            "status": "unavailable",
+            "reason": "GitHub CLI is not installed",
+        }
     result = subprocess.run(
         [executable, "attestation", "verify", str(archive), "--repo", repository],
         text=True,
@@ -739,7 +742,18 @@ def _verify_provenance(archive: Path, repository: str) -> None:
     )
     if result.returncode:
         detail = result.stderr.strip() or result.stdout.strip() or "unknown error"
+        normalized = detail.casefold()
+        unsupported = (
+            "attestation" in normalized
+            and ("unknown command" in normalized or "not a gh command" in normalized)
+        )
+        if unsupported:
+            return {
+                "status": "unavailable",
+                "reason": "installed GitHub CLI does not support attestation verification",
+            }
         raise RuntimeError(f"Sunday release provenance verification failed: {detail}")
+    return {"status": "verified", "verifier": "gh attestation"}
 
 
 @_serialized_installation
@@ -765,8 +779,12 @@ def update(*, repository: str | None = None, opener=None) -> dict:
         temporary = Path(temp)
         archive = temporary / details["archive_name"]
         archive.write_bytes(archive_bytes)
+        provenance = {
+            "status": "not_checked",
+            "reason": "custom release transport",
+        }
         if opener is None:
-            _verify_provenance(archive, repository)
+            provenance = _verify_provenance(archive, repository)
         extracted = temporary / "extracted"
         extracted.mkdir()
         source = _extract_archive(archive, extracted)
@@ -780,6 +798,7 @@ def update(*, repository: str | None = None, opener=None) -> dict:
         **installed,
         "updated": True,
         "previous_version": details["current_version"],
+        "provenance": provenance,
     }
 
 

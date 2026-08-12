@@ -211,6 +211,33 @@ class InstallationTests(unittest.TestCase):
             (self.home / ".local" / "share" / "sunday" / "releases" / "2.0.0").exists()
         )
 
+    def test_old_github_cli_does_not_block_checksum_verified_update(self):
+        completed = installation.subprocess.CompletedProcess(
+            args=["gh", "attestation"], returncode=1,
+            stdout="", stderr='unknown command "attestation" for "gh"',
+        )
+        with patch.object(installation.shutil, "which", return_value="/usr/bin/gh"), patch.object(
+            installation.subprocess, "run", return_value=completed
+        ):
+            result = installation._verify_provenance(
+                self.home / "release.zip", "company/sunday"
+            )
+        self.assertEqual(result["status"], "unavailable")
+        self.assertIn("does not support", result["reason"])
+
+    def test_real_provenance_failure_still_blocks_update(self):
+        completed = installation.subprocess.CompletedProcess(
+            args=["gh", "attestation"], returncode=1,
+            stdout="", stderr="attestation verification failed",
+        )
+        with patch.object(installation.shutil, "which", return_value="/usr/bin/gh"), patch.object(
+            installation.subprocess, "run", return_value=completed
+        ):
+            with self.assertRaisesRegex(RuntimeError, "provenance verification failed"):
+                installation._verify_provenance(
+                    self.home / "release.zip", "company/sunday"
+                )
+
     def test_release_repository_can_come_from_environment(self):
         source = self.make_source("2.0.0")
         archive = self.release_archive(source, "v2.0.0")
