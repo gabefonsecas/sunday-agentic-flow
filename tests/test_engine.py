@@ -57,6 +57,7 @@ class EngineTests(unittest.TestCase):
         self.project = ProjectConfig(
             "demo", self.repository, workspace_id=1, board_id=2,
             intake_group_id=3, states={"discovery": 10, "implementation": 11, "verification": 12, "review": 13, "completed": 14},
+            publish_stories=True,
         )
         self.tasks = FakeTasks()
         self.git = FakeGit()
