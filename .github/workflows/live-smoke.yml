@@ -31,8 +31,6 @@ jobs:
       OPENAI_API_KEY: ${{ secrets.OPENAI_API_KEY }}
       ANTHROPIC_API_KEY: ${{ secrets.ANTHROPIC_API_KEY }}
       GEMINI_API_KEY: ${{ secrets.GEMINI_API_KEY }}
-      SUNDAY_CONFIG_FILE: ${{ runner.temp }}/sunday-smoke-config.toml
-      SUNDAY_STATE_DIR: ${{ runner.temp }}/sunday-smoke-state
     steps:
       - uses: actions/checkout@v7
       - uses: actions/setup-python@v7
@@ -44,8 +42,12 @@ jobs:
         shell: bash
         env:
           SUNDAY_SMOKE_CONFIG: ${{ secrets.SUNDAY_SMOKE_CONFIG }}
+          SUNDAY_CONFIG_FILE: ${{ runner.temp }}/sunday-smoke-config.toml
         run: printf '%s\n' "$SUNDAY_SMOKE_CONFIG" > "$SUNDAY_CONFIG_FILE"
       - name: Verify live integrations and models
+        env:
+          SUNDAY_CONFIG_FILE: ${{ runner.temp }}/sunday-smoke-config.toml
+          SUNDAY_STATE_DIR: ${{ runner.temp }}/sunday-smoke-state
         run: sunday doctor --network --models
       - name: Execute disposable Friday task
         shell: bash
@@ -53,6 +55,8 @@ jobs:
           SUNDAY_SMOKE_TASK_REF: ${{ inputs.task_ref }}
           SUNDAY_SMOKE_PROJECT: ${{ inputs.project }}
           SUNDAY_SMOKE_HOST: ${{ inputs.host }}
+          SUNDAY_CONFIG_FILE: ${{ runner.temp }}/sunday-smoke-config.toml
+          SUNDAY_STATE_DIR: ${{ runner.temp }}/sunday-smoke-state
         run: |
           sunday run "$SUNDAY_SMOKE_TASK_REF" \
             --project "$SUNDAY_SMOKE_PROJECT" \
