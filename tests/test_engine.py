@@ -1,10 +1,11 @@
+import json
 import tempfile
 from pathlib import Path
 import unittest
 
 from sunday.adapters.base import ExecutionResult
 from sunday.config import ProjectConfig, Settings
-from sunday.engine import SundayEngine
+from sunday.engine import SundayEngine, sunday_result, sunday_stories
 from sunday.state import LeaseLostError, RunStore
 from tests.fakes import FakeGit, FakeHost, FakeHosts, FakeTasks, FakeWorktrees
 
@@ -67,6 +68,36 @@ class EngineTests(unittest.TestCase):
         )
 
     def tearDown(self): self.temp.cleanup()
+
+    def test_parses_result_and_stories_from_codex_jsonl_envelope(self):
+        message = (
+            'SUNDAY_STORIES: [{"title":"[dev] estimate",'
+            '"description":"complete story"}]\n'
+            'SUNDAY_RESULT: {"success":true,"confidence":0.91,'
+            '"summary":"discovery complete"}'
+        )
+        output = "\n".join([
+            json.dumps({"type": "thread.started", "thread_id": "abc"}),
+            json.dumps({
+                "type": "item.completed",
+                "item": {"type": "agent_message", "text": message},
+            }),
+        ])
+
+        self.assertEqual(sunday_result(output)["summary"], "discovery complete")
+        stories = sunday_stories(output, {"id": 1801, "name": "estimate"})
+        self.assertEqual(stories[0]["title"], "[dev] estimate")
+
+    def test_parses_result_before_trailing_host_metadata(self):
+        output = (
+            'SUNDAY_RESULT: {"success":true,"confidence":0.8,'
+            '"summary":"passed"} {"host":"codex"}'
+        )
+        self.assertEqual(sunday_result(output)["summary"], "passed")
+
+    def test_rejects_only_malformed_result_markers(self):
+        with self.assertRaisesRegex(RuntimeError, "malformed SUNDAY_RESULT"):
+            sunday_result('SUNDAY_RESULT: {"success": tru}')
 
     def test_complete_flow_creates_pr_and_audit_routes(self):
         run = self.engine.start("42", self.project, "codex")
