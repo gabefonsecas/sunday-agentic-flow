@@ -2,9 +2,11 @@
   "$schema": "https://json.schemastore.org/claude-code-plugin-manifest.json",
   "name": "sunday-agentic-flow",
   "displayName": "Sunday",
-  "version": "1.0.3",
+  "version": "1.0.4",
   "description": "Sunday deterministic development orchestration across AI coding hosts.",
-  "author": {"name": "Gabriel Fonseca"},
+  "author": {
+    "name": "Gabriel Fonseca"
+  },
   "skills": "./skills/",
   "mcpServers": {
     "friday": {

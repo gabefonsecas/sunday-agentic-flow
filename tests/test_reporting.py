@@ -26,5 +26,6 @@ class ReportingTests(unittest.TestCase):
 
         self.assertEqual(data["reliability"]["reconciled_effects"], 1)
         self.assertEqual(data["effects"][0]["effect_key"], "friday:claim")
+        self.assertEqual(data["run"]["workspace_mode"], "legacy_worktree")
         self.assertIn("confirmed", markdown)
         self.assertIn("External effects", markdown)
