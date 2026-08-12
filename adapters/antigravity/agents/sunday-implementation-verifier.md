@@ -3,7 +3,7 @@ name: sunday-implementation-verifier
 description: Use after implementation to verify acceptance criteria, tests, project rules, and regression risks independently.
 mainAgent: false
 subagent: true
-model: flash
+model: gemini-3.5-flash-medium
 commandExecutionPolicy: sandbox
 ---
 

@@ -2,7 +2,7 @@
 name: sunday-task-analyst
 description: Use proactively for every development request to map repository rules, architecture, Friday context, and acceptance criteria before editing.
 kind: local
-model: gemini-3-flash-preview
+model: gemini-3.5-flash-medium
 temperature: 0.2
 max_turns: 20
 ---

@@ -51,7 +51,7 @@ Never use self-reported confidence as the only routing signal.
 
 - Codex progresses through GPT-5.4 mini, GPT-5.4, GPT-5.6 Terra, GPT-5.5, and GPT-5.6 Sol.
 - Claude progresses through Haiku 4.5, Sonnet 4.6, Sonnet 5, and Opus 5.
-- Gemini progresses through Flash-Lite, Flash, Gemini 3 Flash, Auto, and Pro.
+- Gemini progresses through Gemini 3.5 Flash (Low/Medium/High), Gemini 3.6 Flash (Low/Medium/High), and Gemini 3.1 Pro (Low/High).
 - Antigravity uses the Gemini pool through its native command or Gemini fallback.
 
 Classify simple documentation and text work as `simple`.
