@@ -20,9 +20,20 @@ def main() -> None:
     args = parser.parse_args()
     version = (ROOT / "VERSION").read_text(encoding="utf-8").strip()
     mismatches = []
-    project_version = tomllib.loads((ROOT / "pyproject.toml").read_text(encoding="utf-8"))["project"]["version"]
+    project_path = ROOT / "pyproject.toml"
+    project_version = tomllib.loads(project_path.read_text(encoding="utf-8"))["project"]["version"]
     if project_version != version:
         mismatches.append(f"pyproject.toml: {project_version} != {version}")
+        if args.write:
+            import re
+            content = project_path.read_text(encoding="utf-8")
+            new_content = re.sub(
+                r'^(version\s*=\s*")[^"]+(")',
+                rf'\g<1>{version}\2',
+                content,
+                flags=re.MULTILINE,
+            )
+            project_path.write_text(new_content, encoding="utf-8")
     for path in FILES:
         data = json.loads(path.read_text(encoding="utf-8"))
         current = data.get("version", "").split("+", 1)[0]
