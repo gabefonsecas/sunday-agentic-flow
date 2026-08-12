@@ -1,4 +1,4 @@
-#!/usr/bin/env python3
+#!/usr/bin/env python3.11
 """Source-checkout launcher for Sunday."""
 
 import sys
