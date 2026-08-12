@@ -45,7 +45,7 @@ def data_dir() -> Path:
 def installation_dir() -> Path:
     """Return the root containing versioned Sunday installations."""
     override = os.environ.get("SUNDAY_INSTALL_DIR")
-    return Path(override).expanduser() if override else data_dir()
+    return Path(override).expanduser().resolve() if override else data_dir().resolve()
 
 
 def releases_dir() -> Path:
@@ -55,7 +55,9 @@ def releases_dir() -> Path:
 def bin_dir() -> Path:
     override = os.environ.get("SUNDAY_BIN_DIR")
     if override:
-        return Path(override).expanduser()
+        return Path(override).expanduser().resolve()
+    if _is_windows() and os.environ.get("LOCALAPPDATA"):
+        return Path(os.environ["LOCALAPPDATA"]) / "sunday" / "bin"
     return Path.home() / ".local" / "bin"
 
 

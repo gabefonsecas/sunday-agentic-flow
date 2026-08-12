@@ -25,7 +25,20 @@ $drive = $Matches["drive"].ToLowerInvariant()
 $relativePath = $Matches["path"].Replace('\', '/')
 $linuxPath = "/mnt/$drive/$relativePath"
 
-$command = "cd '$linuxPath' && python3 -m unittest $TestTarget"
+$command = @"
+set -e
+cd '$linuxPath'
+if ! command -v python3.11 >/dev/null 2>&1; then
+  if ! command -v curl >/dev/null 2>&1; then
+    apt-get update
+    apt-get install -y ca-certificates curl
+  fi
+  curl -LsSf https://astral.sh/uv/install.sh | sh
+  export PATH="`$HOME/.local/bin:`$PATH"
+  uv python install 3.11
+fi
+python3.11 -m unittest $TestTarget
+"@
 & wsl.exe --distribution $distribution -- bash -lc $command
 if ($LASTEXITCODE -ne 0) {
     throw "Sunday tests failed inside WSL 2"
