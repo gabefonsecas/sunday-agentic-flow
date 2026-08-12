@@ -34,26 +34,75 @@ def task_description(task: dict) -> str:
     return str(task.get("description") or task.get("descricao") or task.get("content") or "")
 
 
-def sunday_result(output: str) -> dict:
-    matches = re.findall(r"SUNDAY_RESULT\s*:\s*(\{.*\})", output)
-    if not matches:
-        return {"success": True, "confidence": None, "summary": output[-4000:]}
+def _host_text_candidates(output: str):
+    """Yield raw and decoded host text, including JSONL message envelopes."""
+    yield output
+    values = []
     try:
-        value = json.loads(matches[-1])
-    except json.JSONDecodeError as exc:
-        raise RuntimeError("Host returned malformed SUNDAY_RESULT JSON") from exc
+        values.append(json.loads(output))
+    except json.JSONDecodeError:
+        for line in output.splitlines():
+            try:
+                values.append(json.loads(line))
+            except json.JSONDecodeError:
+                continue
+
+    def strings(value):
+        if isinstance(value, str):
+            yield value
+        elif isinstance(value, dict):
+            for item in value.values():
+                yield from strings(item)
+        elif isinstance(value, list):
+            for item in value:
+                yield from strings(item)
+
+    for value in values:
+        yield from strings(value)
+
+
+def _marked_json(output: str, marker: str, expected_type):
+    decoder = json.JSONDecoder()
+    found = False
+    decoded = []
+    pattern = re.compile(rf"{re.escape(marker)}\s*:\s*")
+    for candidate in _host_text_candidates(output):
+        for match in pattern.finditer(candidate):
+            found = True
+            payload = candidate[match.end():].lstrip()
+            if payload.startswith("```"):
+                payload = payload.split("\n", 1)[1].lstrip() if "\n" in payload else ""
+            opening = "{" if expected_type is dict else "["
+            start = payload.find(opening)
+            if start < 0:
+                continue
+            try:
+                value, _ = decoder.raw_decode(payload[start:])
+            except json.JSONDecodeError:
+                continue
+            if isinstance(value, expected_type):
+                decoded.append(value)
+    if decoded:
+        return decoded[-1]
+    if found:
+        raise RuntimeError(f"Host returned malformed {marker} JSON")
+    return None
+
+
+def sunday_result(output: str) -> dict:
+    value = _marked_json(output, "SUNDAY_RESULT", dict)
+    if value is None:
+        return {"success": True, "confidence": None, "summary": output[-4000:]}
     return value
 
 
 def sunday_stories(output: str, task: dict) -> list[dict]:
-    matches = re.findall(r"SUNDAY_STORIES\s*:\s*(\[.*\])", output)
-    if matches:
-        try:
-            stories = json.loads(matches[-1])
-            if isinstance(stories, list) and stories:
-                return stories
-        except json.JSONDecodeError:
-            pass
+    try:
+        stories = _marked_json(output, "SUNDAY_STORIES", list)
+        if stories:
+            return stories
+    except RuntimeError:
+        pass
     title = task_title(task)
     description = task_description(task)
     return [{

@@ -2,6 +2,11 @@
 
 ## Unreleased
 
+## 1.0.2
+
+- Fixed Codex JSONL parsing for escaped `SUNDAY_RESULT` and `SUNDAY_STORIES` payloads.
+- Accepted valid Sunday markers followed by host metadata without weakening malformed-output checks.
+
 ## 1.0.1
 
 - Moved the WSL 2 release gate to an ephemeral GitHub-hosted Windows runner.
