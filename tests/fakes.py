@@ -48,9 +48,26 @@ class FakeGit:
             "root": str(repository), "dirty": False, "changes": [], "branch": "main",
             "remote": "git@example/repo", "branches": {"main": True, "homolog": True, "origin/main": True, "origin/homolog": True},
         }
+    def inspect_head(self, repository): return "base123"
     def create_branch(self, repository, branch, base):
         self.calls.append(("branch", branch, base))
-        return {"branch": branch, "base": base}
+        return {"path": str(repository), "branch": branch, "base": base, "mode": "checkout"}
+    def inspect_branch(self, repository, branch, base=None):
+        return {"path": str(repository), "branch": branch, "base": base, "mode": "checkout"}
+    def checkout_revision(self, repository, revision):
+        self.calls.append(("checkout_revision", revision))
+        return {
+            "path": str(repository), "head": revision, "revision": revision,
+            "detached": "true", "mode": "checkout", "original_branch": "main",
+            "original_head": "base123",
+        }
+    def inspect_revision(self, repository, revision):
+        return {"path": str(repository), "head": revision, "revision": revision, "detached": "true"}
+    def restore_checkout(self, repository, branch, revision):
+        self.calls.append(("restore_checkout", branch, revision))
+        return {"path": str(repository), "restored": True, "branch": branch, "head": revision}
+    def inspect_restored_checkout(self, repository, branch, revision):
+        return {"path": str(repository), "restored": True, "branch": branch, "head": revision, "reconciled": True}
     def commit(self, repository, message):
         self.calls.append(("commit", message))
         return {"commit": "abc123", "created": True}

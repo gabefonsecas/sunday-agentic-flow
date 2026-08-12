@@ -249,11 +249,10 @@ class EngineTests(unittest.TestCase):
         self.assertEqual(run.state, "completed")
         self.assertTrue(run.metadata["review_only"])
         self.assertEqual(run.metadata["review_target"]["commit"], "abc123")
-        self.assertIn(
-            ("create_detached", run.id, "abc123"), self.worktrees.calls
-        )
+        self.assertIn(("checkout_revision", "abc123"), self.git.calls)
+        self.assertIn(("restore_checkout", "main", "base123"), self.git.calls)
         self.assertEqual(self.tasks.calls, [])
-        self.assertEqual(self.hosts.host.repositories, [Path(run.worktree_path)])
+        self.assertEqual(self.hosts.host.repositories, [self.repository.resolve()])
 
     def test_review_resume_keeps_commit_persisted_before_completed_effect(self):
         resolved = {
@@ -321,6 +320,38 @@ class EngineTests(unittest.TestCase):
         self.assertEqual(self.git.calls, [])
         self.assertEqual(self.tasks.calls, [])
 
+    def test_review_resume_reconciles_checkout_already_restored(self):
+        run = self.store.create(
+            "review:feature/restored", "demo", "codex",
+            {
+                "repository": str(self.repository), "title": "Review restored",
+                "description": "Independent review", "review_only": True,
+                "review_reference": "feature/restored", "workspace_mode": "checkout",
+                "review_target": {"commit": "abc123", "baseCommit": "base123"},
+                "review_checkout": {
+                    "original_branch": "main", "original_head": "base123"
+                },
+                "review": "passed",
+            },
+        )
+        self.store.set_worktree(run.id, self.repository)
+        for state in (
+            "discovery", "stories", "publication", "implementation",
+            "verification", "review", "pull_request",
+        ):
+            self.store.transition(run.id, state)
+        self.store.save_effect(
+            run.id, "git:restore_review_checkout", "started",
+            {"branch": "main", "revision": "base123"},
+        )
+
+        completed = self.engine.execute(run.id, self.project)
+
+        self.assertEqual(completed.state, "completed")
+        effect = self.store.effect(run.id, "git:restore_review_checkout")
+        self.assertEqual(effect["status"], "completed")
+        self.assertTrue(effect["payload"]["reconciled"])
+
     def test_completed_task_cannot_publish_again(self):
         first = self.engine.start("42", self.project, "codex")
         with self.assertRaisesRegex(RuntimeError, first.id):
@@ -373,9 +404,9 @@ class EngineTests(unittest.TestCase):
         self.assertEqual(run.state, "paused")
         self.assertEqual(run.resume_state, "pull_request")
         self.assertFalse(any(call[0] == "pr" for call in self.tasks.calls))
-        self.assertIsNotNone(self.worktrees.inspect(self.repository, run.id))
+        self.assertEqual(Path(run.worktree_path), self.repository.resolve())
 
-    def test_zero_retention_removes_clean_worktree(self):
+    def test_zero_retention_keeps_repository_checkout(self):
         settings = Settings(
             projects={"demo": self.project}, completed_worktree_retention_days=0,
         )
@@ -385,9 +416,9 @@ class EngineTests(unittest.TestCase):
         )
         run = engine.start("42", self.project, "codex")
         self.assertEqual(run.state, "completed")
-        self.assertIsNone(self.worktrees.inspect(self.repository, run.id))
+        self.assertEqual(Path(run.worktree_path), self.repository.resolve())
 
-    def test_zero_retention_removes_completed_review_worktree(self):
+    def test_zero_retention_restores_completed_review_checkout(self):
         settings = Settings(
             projects={"demo": self.project}, completed_worktree_retention_days=0,
         )
@@ -397,4 +428,5 @@ class EngineTests(unittest.TestCase):
         )
         run = engine.review_only("feature/review-me", self.project, "codex")
         self.assertEqual(run.state, "completed")
-        self.assertIsNone(self.worktrees.inspect(self.repository, run.id))
+        self.assertIn(("restore_checkout", "main", "base123"), self.git.calls)
+        self.assertEqual(Path(run.worktree_path), self.repository.resolve())
