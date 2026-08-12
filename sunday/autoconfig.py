@@ -208,7 +208,7 @@ SUNDAY_CONFIG: {{"workspace_id":1,"board_id":2,"intake_group_id":3,
             states=normalized_states, base_branch="auto", pr_column=pr_column,
             people_column=people_column, status_column=status_column,
             ai_column=ai_column,
-            publish_stories=True,
+            publish_stories=False,
         )
 
     def _save(self, project: ProjectConfig, destination: Path) -> None:
