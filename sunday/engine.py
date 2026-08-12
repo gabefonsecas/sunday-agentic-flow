@@ -646,6 +646,8 @@ class SundayEngine:
             return
         task_id = int(run.metadata["task_id"])
         target = project.states.get(state)
+        if target is None or str(target) == "":
+            target = state
 
         # 1. Update status column or group transition
         if target is not None and str(target) != "":
@@ -686,12 +688,17 @@ class SundayEngine:
             "implementation": "Desenvolvimento e alterações de código em andamento.",
             "verification": "Implementação concluída. Executando testes e verificações.",
             "review": "Verificações aprovadas. Revisão final do código.",
+            "pull_request": "Pull Request criada e pronta para revisão.",
             "completed": "Fluxo concluído com sucesso.",
             "failed": "Execução interrompida devido a falha ou bloqueio.",
         }
         if state in phase_messages:
             try:
                 msg = f"[Sunday:{run.id}] **{phase_messages[state]}** (Fase: `{state}`)"
+                pr = run.metadata.get("pull_request") or {}
+                pr_url = pr.get("url") if isinstance(pr, dict) else None
+                if pr_url:
+                    msg += f"\n\n**Pull Request:** {pr_url}"
                 self._effect(
                     run, f"friday:comment_phase:{state}",
                     lambda: self._tasks().comment(task_id, msg),

@@ -315,6 +315,14 @@ class RunStore:
     def get(self, run_id: str) -> Run:
         with self.connect() as connection:
             row = connection.execute("SELECT * FROM runs WHERE id = ?", (run_id,)).fetchone()
+            if not row and run_id and len(run_id) >= 4:
+                matches = connection.execute(
+                    "SELECT * FROM runs WHERE id LIKE ?", (f"{run_id}%",)
+                ).fetchall()
+                if len(matches) == 1:
+                    row = matches[0]
+                elif len(matches) > 1:
+                    raise KeyError(f"Ambiguous run prefix '{run_id}' matches {len(matches)} runs")
         if not row:
             raise KeyError(f"Unknown run: {run_id}")
         return self._run(row)
