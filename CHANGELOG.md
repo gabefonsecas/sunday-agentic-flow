@@ -2,6 +2,14 @@
 
 ## Unreleased
 
+## 1.0.4
+
+- Replaced per-run worktrees with the active repository checkout.
+- Added clean-checkout validation and repository checkout locking.
+- Made Sunday create and use its task branch in-place.
+- Restored the original checkout after branch and pull-request reviews.
+- Kept cleanup support only for legacy worktrees.
+
 ## 1.0.3
 
 - Made Python 3.11 explicit across bootstrap scripts and WSL execution.

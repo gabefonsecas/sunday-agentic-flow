@@ -155,6 +155,27 @@ class GitProviderAdapter(ABC):
     def create_branch(self, repository: Path, branch: str, base: str) -> dict: ...
 
     @abstractmethod
+    def inspect_branch(
+        self, repository: Path, branch: str, base: str | None = None,
+    ) -> dict | None: ...
+
+    @abstractmethod
+    def checkout_revision(self, repository: Path, revision: str) -> dict: ...
+
+    @abstractmethod
+    def inspect_revision(self, repository: Path, revision: str) -> dict | None: ...
+
+    @abstractmethod
+    def restore_checkout(
+        self, repository: Path, branch: str | None, revision: str,
+    ) -> dict: ...
+
+    @abstractmethod
+    def inspect_restored_checkout(
+        self, repository: Path, branch: str | None, revision: str,
+    ) -> dict | None: ...
+
+    @abstractmethod
     def publish_branch(self, repository: Path, branch: str) -> dict: ...
 
     @abstractmethod

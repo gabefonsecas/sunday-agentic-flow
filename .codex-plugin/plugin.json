@@ -1,6 +1,6 @@
 {
   "name": "sunday-agentic-flow",
-  "version": "1.0.3",
+  "version": "1.0.4",
   "description": "Sunday deterministic development orchestration across AI coding hosts.",
   "author": {
     "name": "Gabriel Fonseca",
@@ -30,7 +30,7 @@
     ],
     "defaultPrompt": [
       "Sunday, crie uma tarefa no Friday para este projeto.",
-      "Sunday, crie esta tarefa no Friday e j\u00e1 comece a executar.",
+      "Sunday, crie esta tarefa no Friday e já comece a executar.",
       "Execute ou revise esta tarefa com Sunday e mostre seu estado."
     ]
   },

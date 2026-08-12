@@ -31,10 +31,88 @@ class GitHubAdapter(GitProviderAdapter):
         return {"root": root, "dirty": bool(status), "changes": status, "branch": branch, "remote": remote, "branches": branches}
 
     def create_branch(self, repository: Path, branch: str, base: str) -> dict:
+        state = self.inspect_repository(repository)
+        if state["dirty"]:
+            raise RuntimeError(
+                "Repository has local changes. Commit or stash them before Sunday starts."
+            )
         run(["git", "fetch", "origin", base], repository)
         exists = run(["git", "rev-parse", "--verify", "--quiet", branch], repository, False).returncode == 0
-        run(["git", "switch", branch] if exists else ["git", "switch", "-c", branch, f"origin/{base}"], repository)
-        return {"branch": branch, "base": base, "existing": exists}
+        if exists:
+            raise RuntimeError(
+                f"Refusing to reuse an existing Sunday branch: {branch}"
+            )
+        run(["git", "switch", "-c", branch, f"origin/{base}"], repository)
+        return {
+            "path": str(repository.resolve()), "branch": branch,
+            "base": base, "existing": exists, "mode": "checkout",
+        }
+
+    def inspect_branch(
+        self, repository: Path, branch: str, base: str | None = None,
+    ) -> dict | None:
+        state = self.inspect_repository(repository)
+        if state["branch"] != branch:
+            return None
+        return {
+            "path": str(repository.resolve()), "branch": branch,
+            "base": base, "existing": True, "mode": "checkout",
+        }
+
+    def checkout_revision(self, repository: Path, revision: str) -> dict:
+        state = self.inspect_repository(repository)
+        if state["dirty"]:
+            raise RuntimeError(
+                "Repository has local changes. Commit or stash them before Sunday reviews."
+            )
+        original_branch = state["branch"] or None
+        original_head = self.inspect_head(repository)
+        run(["git", "switch", "--detach", revision], repository)
+        return {
+            "path": str(repository.resolve()), "head": revision,
+            "revision": revision, "detached": "true", "mode": "checkout",
+            "original_branch": original_branch, "original_head": original_head,
+        }
+
+    def inspect_revision(self, repository: Path, revision: str) -> dict | None:
+        state = self.inspect_repository(repository)
+        head = self.inspect_head(repository)
+        if state["branch"] or head != revision:
+            return None
+        return {
+            "path": str(repository.resolve()), "head": head,
+            "revision": revision, "detached": "true", "mode": "checkout",
+        }
+
+    def restore_checkout(
+        self, repository: Path, branch: str | None, revision: str,
+    ) -> dict:
+        state = self.inspect_repository(repository)
+        if state["dirty"]:
+            raise RuntimeError("Review left local changes; refusing to switch checkout")
+        if branch:
+            run(["git", "switch", branch], repository)
+        else:
+            run(["git", "switch", "--detach", revision], repository)
+        return {
+            "path": str(repository.resolve()), "restored": True,
+            "branch": branch, "head": self.inspect_head(repository),
+        }
+
+    def inspect_restored_checkout(
+        self, repository: Path, branch: str | None, revision: str,
+    ) -> dict | None:
+        state = self.inspect_repository(repository)
+        head = self.inspect_head(repository)
+        if branch:
+            if state["branch"] != branch or head != revision:
+                return None
+        elif state["branch"] or head != revision:
+            return None
+        return {
+            "path": str(repository.resolve()), "restored": True,
+            "branch": branch, "head": head, "reconciled": True,
+        }
 
     def commit(self, repository: Path, message: str) -> dict:
         root = Path(run(["git", "rev-parse", "--show-toplevel"], repository).stdout.strip()).resolve()

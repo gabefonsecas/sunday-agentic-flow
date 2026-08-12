@@ -12,6 +12,44 @@ def completed(stdout: str) -> subprocess.CompletedProcess:
 
 
 class GitHubAdapterTests(unittest.TestCase):
+    def test_create_branch_refuses_dirty_checkout(self):
+        dirty = {
+            "root": "/repo", "dirty": True, "changes": [" M file.py"],
+            "branch": "main", "remote": "origin", "branches": {},
+        }
+        with patch.object(GitHubAdapter, "inspect_repository", return_value=dirty):
+            with self.assertRaisesRegex(RuntimeError, "local changes"):
+                GitHubAdapter().create_branch(Path("."), "sunday/42-task", "main")
+
+    def test_create_branch_uses_same_repository_checkout(self):
+        clean = {
+            "root": "/repo", "dirty": False, "changes": [],
+            "branch": "main", "remote": "origin", "branches": {},
+        }
+        responses = [completed(""), subprocess.CompletedProcess([], 1, stdout="", stderr=""), completed("")]
+        with patch.object(GitHubAdapter, "inspect_repository", return_value=clean), patch(
+            "sunday.adapters.github.run", side_effect=responses,
+        ):
+            result = GitHubAdapter().create_branch(
+                Path("."), "sunday/42-task", "main"
+            )
+        self.assertEqual(Path(result["path"]), Path(".").resolve())
+        self.assertEqual(result["mode"], "checkout")
+
+    def test_create_branch_refuses_existing_branch(self):
+        clean = {
+            "root": "/repo", "dirty": False, "changes": [],
+            "branch": "main", "remote": "origin", "branches": {},
+        }
+        responses = [completed(""), completed("")]
+        with patch.object(GitHubAdapter, "inspect_repository", return_value=clean), patch(
+            "sunday.adapters.github.run", side_effect=responses,
+        ):
+            with self.assertRaisesRegex(RuntimeError, "existing Sunday branch"):
+                GitHubAdapter().create_branch(
+                    Path("."), "sunday/42-collision", "main"
+                )
+
     def test_review_pull_request_is_fetched_at_observed_head(self):
         head = "a" * 40
         base = "c" * 40
