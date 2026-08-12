@@ -27,17 +27,40 @@ jobs:
       - uses: actions/setup-python@v7
         with:
           python-version: "3.11"
-      - name: Validate tag matches the packaged version
+      - name: Synchronize version with release tag
         run: |
-          version=$(tr -d '[:space:]' < VERSION)
-          test "v${version}" = "$GITHUB_REF_NAME"
+          tag_version="${GITHUB_REF_NAME#v}"
+          echo "$tag_version" > VERSION
+          python scripts/sync_versions.py --write
       - run: python -m unittest discover -s tests -v
       - run: python -m compileall -q sunday scripts tests
       - run: python scripts/sync_versions.py
       - name: Build portable archive
         run: |
           archive="sunday-agentic-flow-${GITHUB_REF_NAME}.zip"
-          git archive --format=zip --prefix=sunday-agentic-flow/ --output="$archive" HEAD
+          prefix="sunday-agentic-flow/"
+          git archive --format=zip --prefix="$prefix" --output="$archive" HEAD
+          python -c "
+import zipfile, pathlib
+archive = '$archive'
+prefix = '$prefix'
+files_to_update = {
+    'VERSION': pathlib.Path('VERSION').read_bytes(),
+    'pyproject.toml': pathlib.Path('pyproject.toml').read_bytes(),
+    '.codex-plugin/plugin.json': pathlib.Path('.codex-plugin/plugin.json').read_bytes(),
+    '.claude-plugin/plugin.json': pathlib.Path('.claude-plugin/plugin.json').read_bytes(),
+    'gemini-extension.json': pathlib.Path('gemini-extension.json').read_bytes(),
+}
+target_names = {f'{prefix}{rel}' for rel in files_to_update}
+temp_zip = archive + '.tmp'
+with zipfile.ZipFile(archive, 'r') as zin, zipfile.ZipFile(temp_zip, 'w', zipfile.ZIP_DEFLATED) as zout:
+    for item in zin.infolist():
+        if item.filename not in target_names:
+            zout.writestr(item, zin.read(item.filename))
+    for rel_path, data in files_to_update.items():
+        zout.writestr(f'{prefix}{rel_path}', data)
+pathlib.Path(temp_zip).replace(archive)
+"
           sha256sum "$archive" > "${archive}.sha256"
       - uses: actions/attest-build-provenance@v4
         with:
