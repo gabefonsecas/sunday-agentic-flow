@@ -3,7 +3,7 @@ name: sunday-task-analyst
 description: Use proactively for every development request to map repository rules, architecture, Friday context, and acceptance criteria before editing.
 mainAgent: false
 subagent: true
-model: flash
+model: gemini-3.5-flash-medium
 commandExecutionPolicy: sandbox
 ---
 

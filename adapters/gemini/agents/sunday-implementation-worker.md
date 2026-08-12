@@ -2,7 +2,7 @@
 name: sunday-implementation-worker
 description: Use for bounded implementation and focused tests after requirements, repository rules, and story boundaries are established.
 kind: local
-model: gemini-3-flash-preview
+model: gemini-3.6-flash-medium
 temperature: 0.2
 max_turns: 40
 ---

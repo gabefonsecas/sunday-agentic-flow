@@ -82,8 +82,8 @@ O modelo é passado explicitamente ao CLI do host.
 | --- | --- | --- | --- | --- | --- |
 | Codex | GPT-5.4 mini | GPT-5.4 | GPT-5.6 Terra | GPT-5.5 | GPT-5.6 Sol |
 | Claude | Haiku 4.5 | Sonnet 4.6 | - | Sonnet 5 | Opus 5 |
-| Gemini | Flash-Lite | Flash | Gemini 3 Flash | Auto | Pro |
-| Antigravity | Flash-Lite | Flash | Gemini 3 Flash | Auto | Pro |
+| Gemini | Gemini 3.5 Flash (Low) | Gemini 3.5 Flash (Med/High) | Gemini 3.6 Flash (Low/Med) | Gemini 3.6 Flash (High) | Gemini 3.1 Pro (Low/High) |
+| Antigravity | Gemini 3.5 Flash (Low) | Gemini 3.5 Flash (Med/High) | Gemini 3.6 Flash (Low/Med) | Gemini 3.6 Flash (High) | Gemini 3.1 Pro (Low/High) |
 
 Sunday classifica a tarefa antes de selecionar modelos:
 

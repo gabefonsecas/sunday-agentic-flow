@@ -316,6 +316,11 @@ class CommandHostAdapter(HostAdapter):
         if requested == observed:
             return True
         gemini_aliases = {
+            "flash-low": "flash-low",
+            "flash-medium": "flash-medium",
+            "flash-high": "flash-high",
+            "pro-low": "pro-low",
+            "pro-high": "pro-high",
             "flash-lite": "flash-lite",
             "flash": "flash",
             "pro": "pro",
