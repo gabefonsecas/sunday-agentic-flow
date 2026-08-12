@@ -39,6 +39,7 @@ if ! command -v python3.11 >/dev/null 2>&1; then
 fi
 python3.11 -m unittest $TestTarget
 "@
+$command = $command.Replace("`r`n", "`n").Trim()
 & wsl.exe --distribution $distribution -- bash -lc $command
 if ($LASTEXITCODE -ne 0) {
     throw "Sunday tests failed inside WSL 2"
